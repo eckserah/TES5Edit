@@ -595,11 +595,14 @@ begin
   end;
 end;
 
-procedure WriteElement(aElement: IwbElement; aIndent: string = ''); forward;
+procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;lastElement: boolean = False); forward;
 
 procedure WriteContainer(aContainer: IwbContainer; aIndent: string = '');
 var
   i            : Integer;
+  j            : Integer;
+  ChildIsFirst        : boolean;
+  ChildIsLast        : boolean;
   GroupRecord  : IwbGroupRecord;
   ContainerRef : IwbContainerElementRef;
   Chapter      : IwbChapter;
@@ -630,19 +633,41 @@ begin
   if aContainer.Skipped then begin
     if ((not wbReportMode) or DumpCheckReport) then WriteLn(aIndent, '<contents skipped>');
   end else begin
+    // Is a container, can contain sub elements
     Supports(aContainer, IwbContainerElementRef, ContainerRef);
-    for i := 0 to Pred(aContainer.ElementCount) do
-      WriteElement(aContainer.Elements[i], aIndent);
+    // Loops through the containers
+    if (aContainer.ElementCount > 0) then begin
+      Write('{');
+      for i := 0 to Pred(aContainer.ElementCount) do begin
+        if (i=0) or (i=j) then begin
+          ChildIsFirst := True;
+        end else begin
+          ChildIsFirst :=  False;
+        end;
+
+        if (i + 1 = aContainer.ElementCount) then begin
+          ChildIsLast := True;
+        end else begin
+          ChildIsLast :=  False;
+        end ;
+
+          if (Pos('Hidden: ', aContainer.Elements[i].Name)<>1) then begin
+              WriteElement(aContainer.Elements[i], aIndent,ChildIsFirst,ChildIsLast);
+          end else begin
+            j := j+1
+          end;
+      end;
+      Write('}');
+    end;
   end;
 end;
 
-procedure WriteElement(aElement: IwbElement; aIndent: string = '');
+procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;lastElement: boolean = False);
 var
   Container   : IwbContainer;
   Name        : string;
   Value       : string;
   Error       : string;
-
   i            : Integer;
   GroupRecord  : IwbGroupRecord;
 begin
@@ -668,14 +693,39 @@ begin
 
   if wbToolMode in [tmDump] then begin
 
-    Name := aElement.DisplayName[True];
-    Value := aElement.Value;
 
+    Name := aElement.Name;
+    if ((Pos('[',Name) > 0) and (Pos(']',Name) > 0)) then begin
+      Name := copy(Name,Pos('[',Name)+1,8);
+    end else begin
+      Name := aElement.DisplayName[True];
+    end;
+    if (Pos('GRUP Top',Name)>0) then
+      Name := copy(Name,11,4);
+    Value := StringReplace(aElement.Value,'\','\\',[rfReplaceAll]);
+
+
+
+
+    // Checks the value for brackets, if it has brackets get the FORMID from within
+    if ((Pos('[',Value) > 0) and (Pos(']',Value) > 0)) then begin
+      Value := copy(Value,Pos('[',Value)+1,8);
+    end;
+
+    // if dumphidden flag is on, or if name != unused
     if DumpHidden or ((aElement.Name <> 'Unused') and (Name <> 'Unused')) then begin
-      if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then
-        Write(aIndent, Name);
+      // if name is not blank then write value
+      if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then begin
+          if (firstElement) then begin
+              Write(aIndent, '"'+Name+'":');
+          end else begin
+             Write(aIndent, ',"'+Name+'":');
+          end;
+      end;
+      // if name or value is not blank
       if (Name <> '') or (Value <> '') then begin
         aIndent := aIndent + '  ';
+        // if dumpsize flag is on then write the size of the element
         if DumpSize then
           if (not wbReportMode) or DumpCheckReport then begin
             if Name <> '' then
@@ -683,12 +733,19 @@ begin
             Write('[', aElement.DataSize, ']');
           end;
       end;
+
+      // if value is not blank, and dump hidden flag or "Hidden" not in name of val
       if (Value <> '') and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then begin
+        // if not report mode, or dump check report, write value
         if ((not wbReportMode) or DumpCheckReport) then
-          WriteLn(': ', Value);
+          WriteLn('"'+Value+'"');
       end else begin
-        if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then
-          WriteLn;
+        if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then   begin
+          if(Supports(aElement, IwbContainer, Container)) and (Container.ElementCount = 0) then
+            WriteLn('{}')
+          else
+            WriteLn;
+        end;
       end;
     end;
   end;
@@ -696,8 +753,9 @@ begin
   if DumpCheckReport and (Error <> '') then
     WriteLn(aIndent, '[ERROR: ', Error ,']');
 
-  if Supports(aElement, IwbContainer, Container) and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then
+  if Supports(aElement, IwbContainer, Container) and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then begin
     WriteContainer(Container, aIndent);
+  end;
 end;
 
 {==============================================================================}
