@@ -73,6 +73,32 @@ var
   DumpCheckReport : Boolean = False;
   DumpSize        : Boolean = False;
   DumpHidden      : Boolean = False;
+  outFile         : TextFile;
+
+
+procedure closeOurFile();
+begin
+  CloseFile(outFile);
+end;
+
+
+procedure setFile(fileName:String;closePrevious:Boolean = False);
+begin
+  if closePrevious then
+    closeOurFile();
+  AssignFile(outFile,fileName);
+  rewrite(outFile);
+end;
+
+procedure writeLineToFile(line:String);
+begin
+  writeln(outFile,line);
+end;
+
+procedure writeToFile(content:String);
+begin
+  write(outFile,content);
+end;
 
 procedure ReportProgress(const aStatus: string);
 begin
@@ -595,14 +621,18 @@ begin
   end;
 end;
 
-procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;lastElement: boolean = False); forward;
+procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;isArray: boolean = False); forward;
+
+
+
+
 
 procedure WriteContainer(aContainer: IwbContainer; aIndent: string = '');
 var
   i            : Integer;
   j            : Integer;
   ChildIsFirst        : boolean;
-  ChildIsLast        : boolean;
+  ChildIsArray : boolean;
   GroupRecord  : IwbGroupRecord;
   ContainerRef : IwbContainerElementRef;
   Chapter      : IwbChapter;
@@ -613,6 +643,7 @@ begin
         if Assigned(DumpGroups) and not DumpGroups.Find(String(TwbSignature(GroupRecord.GroupLabel)), i) then
           Exit;
         ReportProgress('Dumping: ' + GroupRecord.Name);
+        setFile(copy(GroupRecord.Name,11,4)+'.json');
       end
       else
         if Assigned(SkipChildGroups) and Assigned(GroupRecord.ChildrenOf) and
@@ -637,7 +668,15 @@ begin
     Supports(aContainer, IwbContainerElementRef, ContainerRef);
     // Loops through the containers
     if (aContainer.ElementCount > 0) then begin
-      Write('{');
+      if ((aContainer.GetValueDef() <> Nil) and (aContainer.GetValueDef().DefType = dtArray )) or ((aContainer.ElementType = etArray) or (aContainer.ElementType = etSubRecordArray)) then
+          ChildIsArray := True
+      else
+          ChildIsArray := False;
+
+      if ChildIsArray then
+         writeToFile('[')
+      else
+        writeToFile('{');
       for i := 0 to Pred(aContainer.ElementCount) do begin
         if (i=0) or (i=j) then begin
           ChildIsFirst := True;
@@ -645,24 +684,21 @@ begin
           ChildIsFirst :=  False;
         end;
 
-        if (i + 1 = aContainer.ElementCount) then begin
-          ChildIsLast := True;
-        end else begin
-          ChildIsLast :=  False;
-        end ;
-
           if (Pos('Hidden: ', aContainer.Elements[i].Name)<>1) then begin
-              WriteElement(aContainer.Elements[i], aIndent,ChildIsFirst,ChildIsLast);
+              WriteElement(aContainer.Elements[i], aIndent,ChildIsFirst,ChildIsArray);
           end else begin
             j := j+1
           end;
       end;
-      Write('}');
+      if ChildIsArray then
+         writeToFile(']')
+      else
+        writeToFile('}');
     end;
   end;
 end;
 
-procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;lastElement: boolean = False);
+procedure WriteElement(aElement: IwbElement; aIndent: string = '';firstElement: boolean = False;isArray: boolean = False);
 var
   Container   : IwbContainer;
   Name        : string;
@@ -703,6 +739,8 @@ begin
     if (Pos('GRUP Top',Name)>0) then
       Name := copy(Name,11,4);
     Value := StringReplace(aElement.Value,'\','\\',[rfReplaceAll]);
+    Value := StringReplace(Value, #13#10, '', [rfReplaceAll]);
+    Value := StringReplace(Value, '"', '\"', [rfReplaceAll]);
 
 
 
@@ -715,11 +753,11 @@ begin
     // if dumphidden flag is on, or if name != unused
     if DumpHidden or ((aElement.Name <> 'Unused') and (Name <> 'Unused')) then begin
       // if name is not blank then write value
-      if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then begin
+      if (Name <> '') and ((not wbReportMode) or DumpCheckReport) and not isArray then begin
           if (firstElement) then begin
-              Write(aIndent, '"'+Name+'":');
+              writeToFile(aIndent+'"'+Name+'":');
           end else begin
-             Write(aIndent, ',"'+Name+'":');
+             writeToFile(aIndent+',"'+Name+'":');
           end;
       end;
       // if name or value is not blank
@@ -729,31 +767,36 @@ begin
         if DumpSize then
           if (not wbReportMode) or DumpCheckReport then begin
             if Name <> '' then
-              Write(' ');
-            Write('[', aElement.DataSize, ']');
+              writeToFile(' ');
+            writeToFile('['+ IntToStr(aElement.DataSize)+']');
           end;
       end;
+
+          if isArray and not firstElement then begin
+               writeToFile(aIndent+',');
+          end;
 
       // if value is not blank, and dump hidden flag or "Hidden" not in name of val
       if (Value <> '') and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then begin
         // if not report mode, or dump check report, write value
-        if ((not wbReportMode) or DumpCheckReport) then
-          WriteLn('"'+Value+'"');
+        if ((not wbReportMode) or DumpCheckReport) then begin
+            writeLineToFile('"'+Value+'"');
+        end;
       end else begin
         if (Name <> '') and ((not wbReportMode) or DumpCheckReport) then   begin
           if(Supports(aElement, IwbContainer, Container)) and (Container.ElementCount = 0) then
-            WriteLn('{}')
+            writeLineToFile('{}')
           else
-            WriteLn;
+              writeLineToFile('');
         end;
       end;
     end;
   end;
 
   if DumpCheckReport and (Error <> '') then
-    WriteLn(aIndent, '[ERROR: ', Error ,']');
+    writeLineToFile(aIndent+ '[ERROR: '+ Error +']');
 
-  if Supports(aElement, IwbContainer, Container) and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then begin
+  if (Value = '') and Supports(aElement, IwbContainer, Container) and (DumpHidden or (Pos('Hidden: ', Name)<>1)) then begin
     WriteContainer(Container, aIndent);
   end;
 end;
@@ -1646,10 +1689,12 @@ begin
       ReportProgress('Finished loading record. Starting Dump.');
 
       if wbToolMode in [tmDump] then begin
-        if FindCmdLineSwitch('check') and not wbReportMode then
+        if FindCmdLineSwitch('check') and not wbReportMode then begin
           CheckForErrors(0, _File)
-        else
+        end else begin
+          setFile('Header.json',False);
           WriteContainer(_File);
+        end;
 
         if wbReportMode then begin
           if DumpCheckReport then begin
@@ -1669,7 +1714,7 @@ begin
 
         wbDefProfiles.SaveToFile(wbAppName+wbToolName+wbSourceName+'.txt');
       end;
-
+      closeOurFile();
       ReportProgress('All Done.');
     except
       on e: Exception do
