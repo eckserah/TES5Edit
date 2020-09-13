@@ -82,7 +82,7 @@ begin
 end;
 
 
-procedure setFile(fileName:String;closePrevious:Boolean = False);
+procedure setFile(fileName:String;closePrevious:Boolean = True);
 begin
   if closePrevious then
     closeOurFile();
@@ -643,7 +643,6 @@ begin
         if Assigned(DumpGroups) and not DumpGroups.Find(String(TwbSignature(GroupRecord.GroupLabel)), i) then
           Exit;
         ReportProgress('Dumping: ' + GroupRecord.Name);
-        setFile(copy(GroupRecord.Name,11,4)+'.json');
       end
       else
         if Assigned(SkipChildGroups) and Assigned(GroupRecord.ChildrenOf) and
@@ -736,8 +735,13 @@ begin
     end else begin
       Name := aElement.DisplayName[True];
     end;
-    if (Pos('GRUP Top',Name)>0) then
+    if (Pos('GRUP Top',Name)>0) then begin
+      writeToFile('}');
+      setFile(copy(Name,11,4)+'.json');
+      writeToFile('{');
+      firstElement := True;
       Name := copy(Name,11,4);
+    end;
     Value := StringReplace(aElement.Value,'\','\\',[rfReplaceAll]);
     Value := StringReplace(Value, #13#10, '', [rfReplaceAll]);
     Value := StringReplace(Value, '"', '\"', [rfReplaceAll]);
@@ -1687,12 +1691,11 @@ begin
         end;
 
       ReportProgress('Finished loading record. Starting Dump.');
-
+      setFile('Header.json',False);
       if wbToolMode in [tmDump] then begin
         if FindCmdLineSwitch('check') and not wbReportMode then begin
           CheckForErrors(0, _File)
         end else begin
-          setFile('Header.json',False);
           WriteContainer(_File);
         end;
 
