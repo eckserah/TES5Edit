@@ -74,7 +74,19 @@ var
   DumpSize        : Boolean = False;
   DumpHidden      : Boolean = False;
   outFile         : TextFile;
+  outFolder       : String = '';
 
+procedure setFolder(folderPath:String);
+begin
+  if not DirectoryExists(folderPath) then begin
+    if ForceDirectories(folderPath) then begin
+      outFolder:= folderPath;
+    end else begin
+      raise Exception.Create('Was unable to create output folder: '+folderPath);
+    end;
+  end;
+  outFolder := folderPath;
+end;
 
 procedure closeOurFile();
 begin
@@ -86,7 +98,7 @@ procedure setFile(fileName:String;closePrevious:Boolean = True);
 begin
   if closePrevious then
     closeOurFile();
-  AssignFile(outFile,fileName);
+  AssignFile(outFile,outFolder+'\\'+fileName);
   rewrite(outFile);
 end;
 
@@ -666,7 +678,9 @@ begin
     // Is a container, can contain sub elements
     Supports(aContainer, IwbContainerElementRef, ContainerRef);
     // Loops through the containers
+    j := 0;
     if (aContainer.ElementCount > 0) then begin
+      // Determines if the child element is listarray rather than a dict
       if ((aContainer.GetValueDef() <> Nil) and (aContainer.GetValueDef().DefType = dtArray )) or ((aContainer.ElementType = etArray) or (aContainer.ElementType = etSubRecordArray)) then
           ChildIsArray := True
       else
@@ -683,11 +697,11 @@ begin
           ChildIsFirst :=  False;
         end;
 
-          if (Pos('Hidden: ', aContainer.Elements[i].Name)<>1) then begin
-              WriteElement(aContainer.Elements[i], aIndent,ChildIsFirst,ChildIsArray);
-          end else begin
-            j := j+1
-          end;
+        if ((Pos('Hidden: ', aContainer.Elements[i].Name)<>1) and (aContainer.Elements[i].Name <> 'Unused')) then begin
+            WriteElement(aContainer.Elements[i], aIndent,ChildIsFirst,ChildIsArray);
+        end else begin
+          j := j+1;
+        end;
       end;
       if ChildIsArray then
          writeToFile(']')
@@ -730,8 +744,19 @@ begin
 
 
     Name := aElement.Name;
+    if(Pos('00004CF4',Name) > 0) then
+      ReportProgress(Name);
+
     if ((Pos('[',Name) > 0) and (Pos(']',Name) > 0)) then begin
-      Name := copy(Name,Pos('[',Name)+1,8);
+      if (Pos('GRUP Cell Children of',Name) = 1) then  begin
+        Name:= 'children of '+copy(Name,Pos('[',Name)+1,8);
+      end else if (Pos('GRUP Cell Persistent Children',Name) = 1) then begin
+        Name:= 'persistant of '+copy(Name,Pos('[',Name)+1,8);
+      end else if (Pos('GRUP Cell Temporary Children',Name) = 1) then begin
+        Name:= 'temporary of '+copy(Name,Pos('[',Name)+1,8);
+      end else begin
+        Name := copy(Name,Pos('[',Name)+1,8);
+      end;
     end else begin
       Name := aElement.DisplayName[True];
     end;
@@ -1289,6 +1314,10 @@ begin
         WriteLn(ErrOutput);
         WriteLn(ErrOutput, 'The Source Code Form is available at https://github.com/TES5Edit/TES5Edit');
         WriteLn(ErrOutput);
+      end;
+
+      if wbFindCmdLineParam('of', s) then begin
+        setFolder(s);
       end;
 
       if wbFindCmdLineParam('dg', s) then begin
