@@ -75,6 +75,7 @@ var
   DumpHidden      : Boolean = False;
   outFile         : TextFile;
   outFolder       : String = '';
+  outputFullNames : Boolean = False;
 
 procedure setFolder(folderPath:String);
 begin
@@ -757,6 +758,8 @@ begin
       end else begin
         Name := copy(Name,Pos('[',Name)+1,8);
       end;
+    end else if ((Pos(' - ',Name) > 0) and not outputFullNames) then begin
+      Name := copy(Name,0,Pos(' - ',Name)-1);
     end else begin
       Name := aElement.DisplayName[True];
     end;
@@ -1318,6 +1321,10 @@ begin
 
       if wbFindCmdLineParam('of', s) then begin
         setFolder(s);
+      end;
+
+      if wbFindCmdLineParam('fullnames',s) then begin
+        outputFullNames := True;
       end;
 
       if wbFindCmdLineParam('dg', s) then begin
