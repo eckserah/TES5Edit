@@ -745,8 +745,6 @@ begin
 
 
     Name := aElement.Name;
-    if(Pos('00004CF4',Name) > 0) then
-      ReportProgress(Name);
 
     if ((Pos('[',Name) > 0) and (Pos(']',Name) > 0)) then begin
       if (Pos('GRUP Cell Children of',Name) = 1) then  begin
@@ -787,14 +785,13 @@ begin
       // if name is not blank then write value
       if (Name <> '') and ((not wbReportMode) or DumpCheckReport) and not isArray then begin
           if (firstElement) then begin
-              writeToFile(aIndent+'"'+Name+'":');
+              writeToFile('"'+Name+'":');
           end else begin
-             writeToFile(aIndent+',"'+Name+'":');
+             writeToFile(',"'+Name+'":');
           end;
       end;
       // if name or value is not blank
       if (Name <> '') or (Value <> '') then begin
-        aIndent := aIndent + '  ';
         // if dumpsize flag is on then write the size of the element
         if DumpSize then
           if (not wbReportMode) or DumpCheckReport then begin
@@ -805,7 +802,7 @@ begin
       end;
 
           if isArray and not firstElement then begin
-               writeToFile(aIndent+',');
+               writeToFile(',');
           end;
 
       // if value is not blank, and dump hidden flag or "Hidden" not in name of val
