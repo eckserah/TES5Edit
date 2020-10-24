@@ -4629,7 +4629,7 @@ begin
       wbWorldspaceOBND,
       wbInteger(SNAM, 'Music', itU32, wbMusicEnum),
       wbByteArray(OFST, 'Offset Data')
-    ], False, nil, cpNormal, False, wbRemoveOFST)
+    ])
   else
   wbRecord(WRLD, 'Worldspace', [
       wbEDID,
@@ -4668,7 +4668,7 @@ begin
       wbWorldspaceOBND,
       wbInteger(SNAM, 'Music', itU32, wbMusicEnum),
       wbOFST
-    ], False, nil, cpNormal, False, wbRemoveOFST);
+    ]);
 
   wbRecord(WTHR, 'Weather', [
     wbEDID,
@@ -4791,6 +4791,8 @@ begin
   wbNexusModsUrl := 'https://www.nexusmods.com/oblivion/mods/11536';
   if wbToolMode = tmLODgen then
     wbNexusModsUrl := 'https://www.nexusmods.com/oblivion/mods/15781';
+
+  wbHEDRVersion := 1.0;
 end;
 
 initialization

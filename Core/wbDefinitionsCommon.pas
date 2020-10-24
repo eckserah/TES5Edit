@@ -1903,7 +1903,7 @@ begin
   if not wbTryGetMainRecord(FormID, MainRecord) then
     Exit;
 
-  PropertyValue := MainRecord.ShortName
+  PropertyValue := MainRecord.Name;
 end;
 
 procedure wbScriptPropertyToStr(var aValue: string; aBasePtr: Pointer; aEndPtr: Pointer; const aElement: IwbElement; aType: TwbCallbackType);
@@ -2519,7 +2519,7 @@ begin
         if not Supports(aElement, IwbSubRecord, SubRecord) then
           Exit(0);
 
-        if SubRecord.DataSize >= aSize then
+        if not Assigned(SubRecord.DataBasePtr) or (SubRecord.DataSize >= aSize) then
           Exit(1);
 
         Exit(0);

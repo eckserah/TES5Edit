@@ -2119,7 +2119,7 @@ begin
     Exit;
 
   Master := aMainRecord.MasterOrSelf;
-  if (Master.OverrideCount = 0) and not wbTranslationMode and not (Master.Signature = 'GMST') then begin
+  if (Master.OverrideCount = 0) and not wbTranslationMode and not ((Master.Signature = 'GMST') or (Master.Signature = 'DFOB')) then begin
     aConflictAll := caOnlyOne;
     aConflictThis := ctOnlyOne;
     aMainRecord.ConflictAll := aConflictAll;
@@ -2144,12 +2144,12 @@ begin
         NodeDatas[0].ConflictThis := ctMaster;
         NodeDatas[1].ConflictThis := ctIdenticalToMaster;
       end else begin
-        aConflictAll := ConflictLevelForChildNodeDatas(NodeDatas, False, (aMainRecord.MasterOrSelf.IsInjected and not (aMainRecord.Signature = 'GMST')) );
+        aConflictAll := ConflictLevelForChildNodeDatas(NodeDatas, False, (aMainRecord.MasterOrSelf.IsInjected and not ((aMainRecord.Signature = 'GMST') or (aMainRecord.Signature = 'DFOB')) ) );
         if aConflictAll = caNoConflict then
           IsCompareToSame;
       end
     end else
-      aConflictAll := ConflictLevelForChildNodeDatas(NodeDatas, False, (aMainRecord.MasterOrSelf.IsInjected and not (aMainRecord.Signature = 'GMST')) );
+      aConflictAll := ConflictLevelForChildNodeDatas(NodeDatas, False, (aMainRecord.MasterOrSelf.IsInjected and not ((aMainRecord.Signature = 'GMST') or (aMainRecord.Signature = 'DFOB')) ) );
 
     for i := Low(NodeDatas) to High(NodeDatas) do
       with NodeDatas[i] do
@@ -5221,7 +5221,6 @@ begin
   wbSortFLST := Settings.ReadBool('Options', 'SortFLST2', wbSortFLST);
   //wbSortINFO := Settings.ReadBool('Options', 'SortINFO', wbSortINFO); read in wbInit
   //wbFillPNAM := Settings.ReadBool('Options', 'FillPNAM', wbFillPNAM); read in wbInit
-  //wbExtendedESL := Settings.ReadBool('Options', 'ExtendedESL', wbExtendedESL); read in wbInit
   wbFocusAddedElement := Settings.ReadBool('Options', 'FocusAddedElement', wbFocusAddedElement);
   wbRequireCtrlForDblClick := Settings.ReadBool('Options', 'RequireCtrlForDblClick', wbRequireCtrlForDblClick);
   wbRemoveOffsetData := Settings.ReadBool('Options', 'RemoveOffsetData', wbRemoveOffsetData);
@@ -5235,6 +5234,7 @@ begin
   wbAlignArrayElements := Settings.ReadBool('Options', 'AlignArrayElements', wbAlignArrayElements);
   wbManualCleaningHide := Settings.ReadBool('Options', 'ManualCleaningHide', wbManualCleaningHide);
   wbManualCleaningAllow := Settings.ReadBool('Options', 'ManualCleaningAllow', wbManualCleaningAllow);
+  wbConvertIntFormID := Settings.ReadBool('Options', 'ConvertIntFormID', wbConvertIntFormID);
   wbCollapseRecordHeader := Settings.ReadBool('Options', 'CollapseRecordHeader', wbCollapseRecordHeader);
   wbCollapseObjectBounds := Settings.ReadBool('Options', 'CollapseObjectBounds', wbCollapseObjectBounds);
   wbCollapseModels := Settings.ReadBool('Options', 'CollapseModels', wbCollapseModels);
@@ -5308,7 +5308,7 @@ begin
           Settings.WriteInteger('Patreon', 'SnoozeDate', Trunc(Now));
           Settings.UpdateFile;
         end else
-          jbhPatreon.ActivateHint(bnPatreon, 'Your support is essential to ensure further xEdit development.', 'Patreon', 15000);
+          jbhPatreon.ActivateHint(bnPatreon, 'Please consider supporting further xEdit development.', 'Patreon', 15000);
 
     if not wbNoNexusModsCheck then
       CheckNexusModsReleaseThread := TwbCheckNexusModsReleaseThread.Create;
@@ -5447,13 +5447,26 @@ var
   _File                       : IwbFile;
   MainRecord                  : IwbMainRecord;
   Node                        : PVirtualNode;
-  i, j                        : Integer;
+  i, j, tmp                   : Integer;
 
 begin
   if (Key = VK_RETURN) and (Shift = []) then begin
     Key := 0;
 
     s := Trim(edFormIDSearch.Text);
+
+    if wbConvertIntFormID then
+      if not StartsText('0', s) and not StartsText('0x', s) then
+        if TryStrToInt(s, tmp) then
+        begin
+          s := IntToHex(tmp, 8);
+          edFormIDSearch.Text := s;
+        end else
+          s := '00000000';
+
+    if StartsText('0x', s) then
+      s := ReplaceText(s, '0x', '');
+
     FormID := TwbFormID.FromStrDef(s, 0);
     FileID := FormID.FileID;
     if not FormID.IsNull then begin
@@ -9403,6 +9416,17 @@ begin
       else if not InputQuery('Edit Value', 'Please change the value:', EditValue) then
         Exit;
 
+      if wbConvertIntFormID and Element.CanContainFormIDs then
+      begin
+        var tmp: Integer;
+        if not StartsText('0', EditValue) and not StartsText('0x', EditValue) then
+          if TryStrToInt(EditValue, tmp) then
+            EditValue := IntToHex(tmp, 8);
+
+        if StartsText('0x', EditValue) then
+          EditValue := ReplaceText(EditValue, '0x', '');
+      end;
+
       Element.EditValue := EditValue;
       ActiveRecords[Pred(vstView.FocusedColumn)].UpdateRefs;
       ViewFocusedElement := Element;
@@ -11885,14 +11909,8 @@ var
     end else
       TargetFile := SourceFile;
 
-    if wbExtendedESL and
-       (TargetFile.MasterCount[True] > 0) and
-       ((Sender = mniNavCompactFormIDs) or TargetFile.IsESL) and
-       (TargetFile.LoadOrderFileID.IsLightSlot or (TargetFile.LoadOrderFileID.FullSlot > 0)) then begin
-
-      if MessageDlg('Do you want to extend the FormID space from 800-FFF to 001-FFF?', mtConfirmation, mbYesNo, 0) = mrYes then
-        LowestFormID := 1;
-    end;
+    if TargetFile.AllowHardcodedRangeUse then
+      LowestFormID := 1;
 
     if AllOrNothing or (Sender = mniNavCompactFormIDs) then
       StartFormID := TwbFormID.FromCardinal(LowestFormID)
@@ -13339,7 +13357,6 @@ begin
     cbActorTemplateHide.Checked := wbActorTemplateHide;
     cbLoadBSAs.Checked := wbLoadBSAs;
     cbSortFLST.Checked := wbSortFLST;
-    cbExtendedESL.Checked := wbExtendedESL;
     cbSortINFO.Checked := wbSortINFO;
     cbFillPNAM.Checked := wbFillPNAM;
     cbFocusAddedElement.Checked := wbFocusAddedElement;
@@ -13360,6 +13377,7 @@ begin
     cbAlignArrayElements.Checked := wbAlignArrayElements;
     cbManualCleaningHide.Checked := wbManualCleaningHide;
     cbManualCleaningAllow.Checked := wbManualCleaningAllow;
+    cbConvertIntFormID.Checked := wbConvertIntFormID;
     cbCollapseRecordHeader.Checked := wbCollapseRecordHeader;
     cbCollapseObjectBounds.Checked := wbCollapseObjectBounds;
     cbCollapseModels.Checked := wbCollapseModels;
@@ -13412,7 +13430,6 @@ begin
     wbActorTemplateHide := cbActorTemplateHide.Checked;
     wbLoadBSAs := cbLoadBSAs.Checked;
     wbSortFLST := cbSortFLST.Checked;
-    wbExtendedESL := cbExtendedESL.Checked;
     wbSortINFO := cbSortINFO.Checked;
     wbFillPNAM := cbFillPNAM.Checked;
     wbFocusAddedElement := cbFocusAddedElement.Checked;
@@ -13431,6 +13448,7 @@ begin
     wbAlignArrayElements := cbAlignArrayElements.Checked;
     wbManualCleaningHide := cbManualCleaningHide.Checked;
     wbManualCleaningAllow := cbManualCleaningAllow.Checked;
+    wbConvertIntFormID := cbConvertIntFormID.Checked;
     wbCollapseRecordHeader := cbCollapseRecordHeader.Checked;
     wbCollapseObjectBounds := cbCollapseObjectBounds.Checked;
     wbCollapseModels := cbCollapseModels.Checked;
@@ -13482,7 +13500,6 @@ begin
     Settings.WriteBool('Options', 'ActorTemplateHide', wbActorTemplateHide);
     Settings.WriteBool('Options', 'LoadBSAs', wbLoadBSAs);
     Settings.WriteBool('Options', 'SortFLST2', wbSortFLST);
-    Settings.WriteBool('Options', 'ExtendedESL', wbExtendedESL);
     Settings.WriteBool('Options', 'SortINFO', wbSortINFO);
     Settings.WriteBool('Options', 'FillPNAM', wbFillPNAM);
     Settings.WriteBool('Options', 'FocusAddedElement', wbFocusAddedElement);
@@ -13501,6 +13518,7 @@ begin
     Settings.WriteBool('Options', 'AlignArrayElements', wbAlignArrayElements);
     Settings.WriteBool('Options', 'ManualCleaningHide', wbManualCleaningHide);
     Settings.WriteBool('Options', 'ManualCleaningAllow', wbManualCleaningAllow);
+    Settings.WriteBool('Options', 'ConvertIntFormID', wbConvertIntFormID);
     Settings.WriteBool('Options', 'CollapseRecordHeader', wbCollapseRecordHeader);
     Settings.WriteBool('Options', 'CollapseObjectBounds', wbCollapseObjectBounds);
     Settings.WriteBool('Options', 'CollapseModels', wbCollapseModels);
@@ -13635,13 +13653,13 @@ begin
   MainRecords := nil;
   Result := nil;
 
-  if aMainRecord.Signature = 'GMST' then begin
+  if (aMainRecord.Signature = 'GMST') or (aMainRecord.Signature = 'DFOB') then begin
     EditorID := aMainRecord.EditorID;
     SetLength(MainRecords, Length(Files));
     Master := nil;
     j := 0;
     for i := Low(Files) to High(Files) do begin
-      Group := Files[i].GroupBySignature['GMST'];
+      Group := Files[i].GroupBySignature[aMainRecord.Signature];
       if Assigned(Group) then begin
         Rec := Group.MainRecordByEditorID[EditorID];
         if Assigned(Rec) then begin
@@ -15718,7 +15736,7 @@ begin
         vstView.NodeDataSize := SizeOf(TViewNodeData) * Length(ActiveRecords);
         if Assigned(ActiveMaster) and Assigned(ActiveMaster.Def) then begin
           vstView.RootNodeCount := (ActiveMaster.Def as IwbRecordDef).MemberCount + ActiveMaster.AdditionalElementCount;
-          InitConflictStatus(vstView.RootNode, ActiveMaster.IsInjected and not (ActiveMaster.Signature = 'GMST'), @ActiveRecords[0]);
+          InitConflictStatus(vstView.RootNode, ActiveMaster.IsInjected and not ((ActiveMaster.Signature = 'GMST') or (ActiveMaster.Signature = 'DFOB')), @ActiveRecords[0]);
           ExpandView;
         end;
 
@@ -19471,7 +19489,7 @@ var
   NewFile   : IwbFile;
   MasterFile: IwbFile;
   WasUnsaved: Boolean;
-  DoMarkModified: Boolean;
+  Worldspaces: IwbElement;
 begin
   try
     wbLoaderDone := True;
@@ -19581,14 +19599,6 @@ begin
         if xeQuickClean then begin
           pnlNavContent.Visible := False;
           try
-            with wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File do begin
-              BuildOrLoadRef(False);
-              DoMarkModified :=
-                    wbForceMarkModified
-                or (wbAutoMarkModified and SameText(FileName, 'Dawnguard.esm'))
-                or (wbAutoMarkModified and SameText(FileName, 'Dragonborn.esm'));
-            end;
-
             mniNavFilterForCleaning.Click;
             JumpTo(wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File.Header, False);
             vstNav.ClearSelection;
@@ -19601,16 +19611,8 @@ begin
 
             WasUnsaved := False;
             with wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File do
-              if esUnsaved in ElementStates then begin
-
-                if DoMarkModified then begin
-                  wbProgress('Marking groups and records in Worldspaces as modified');
-                  var Worldspaces := ElementBySignature['WRLD'];
-                  if Assigned(Worldspaces) then
-                    Worldspaces.MarkModifiedRecursive([etFile, etMainRecord, etGroupRecord]);
-                end;
+              if esUnsaved in ElementStates then
                 WasUnsaved := True;
-              end;
 
             if xeQuickCleanAutoSave then begin
               if SaveChanged(True) >= srAbort then
@@ -19618,9 +19620,6 @@ begin
 
               if WasUnsaved then begin
                 ResetAllConflict;
-
-                with wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File do
-                  BuildOrLoadRef(False);
 
                 mniNavFilterForCleaning.Click;
                 JumpTo(wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File.Header, False);
@@ -19634,15 +19633,8 @@ begin
 
                 WasUnsaved := False;
                 with wbModulesByLoadOrder.FilteredByFlag(mfTaggedForPluginMode)[0]._File do
-                  if esUnsaved in ElementStates then begin
-                    if DoMarkModified then begin
-                      wbProgress('Marking groups and records in Worldspaces as modified');
-                      var Worldspaces := ElementBySignature['WRLD'];
-                      if Assigned(Worldspaces) then
-                        Worldspaces.MarkModifiedRecursive([etFile, etMainRecord, etGroupRecord]);
-                    end;
+                  if esUnsaved in ElementStates then
                     WasUnsaved := True;
-                  end;
 
                 if xeQuickCleanAutoSave then begin
                   if SaveChanged(True) >= srAbort then
@@ -20831,27 +20823,27 @@ initialization
     Free;
   end;
 
-  BeginHooks;
+  var Handle := BeginTransaction;
   try
 
     @Trampoline_TWinControl_MainWndProc := InterceptCreate(@CodePointer_TWinControl_MainWndProc, @Detour_TWinControl_MainWndProc);
     @Trampoline_TUxThemeStyle_DoDrawIcon := InterceptCreate(@CodePointer_TUxThemeStyle_DoDrawIcon, @Detour_TUxThemeStyle_DoDrawIcon);
 
   finally
-    EndHooks;
+    EndTransaction(Handle);
   end;
 
 
 finalization
   _LoaderProgressLock.Free;
 
-  BeginUnHooks;
+  var Handle := BeginTransaction;
   try
 
     InterceptRemove(@Trampoline_TWinControl_MainWndProc);
     InterceptRemove(@Trampoline_TUxThemeStyle_DoDrawIcon);
 
   finally
-    EndUnHooks;
+    EndTransaction(Handle);
   end;
 end.

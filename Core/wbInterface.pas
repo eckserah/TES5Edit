@@ -47,13 +47,13 @@ var
     Major   : 4;
     Minor   : 1;
     Release : 3;
-    Build   : 'c';
+    Build   : 'd';
     Title   : 'EXTREMELY EXPERIMENTAL';
   );
 
 const
-  wbWhatsNewVersion : Integer = 04010301;
-  wbDeveloperMessageVersion : Integer = 04000300;
+  wbWhatsNewVersion : Integer = 04010304;
+  wbDeveloperMessageVersion : Integer = 04010304;
   wbDevCRC32App : Cardinal = $FFFFFFE8;
 
   clOrange       = $004080FF;
@@ -176,6 +176,7 @@ var
   wbAlwaysSaveOnamForce    : Boolean  = False;
   wbManualCleaningAllow    : Boolean  = False;
   wbManualCleaningHide     : Boolean  = False;
+  wbConvertIntFormID       : Boolean  = False;
   wbShrinkButtons          : Boolean  = False;
   wbCollapseRecordHeader   : Boolean  = True;
   wbCollapseObjectBounds   : Boolean  = True;
@@ -210,8 +211,8 @@ var
   wbNoIndexInAliasSummary  : Boolean  = True;
   wbExtendedESL            : Boolean  = False;
 
-  wbAutoMarkModified       : Boolean  = True;
-  wbForceMarkModified      : Boolean  = False;
+  wbHEDRVersion            : Double = 1.0;
+  wbHEDRNextObjectID       : Integer = $800;
 
   wbGlobalModifedGeneration : UInt64;
 
@@ -1364,6 +1365,8 @@ type
     function GetNextObjectID: Cardinal;
     procedure SetNextObjectID(aObjectID: Cardinal);
 
+    function GetAllowHardcodedRangeUse: Boolean;
+
     function HasONAM: Boolean;
     procedure MarkHeaderModified;
 
@@ -1457,6 +1460,9 @@ type
 
     property CompareToFile: IwbFile
       read GetCompareToFile;
+
+    property AllowHardcodedRangeUse: Boolean
+      read GetAllowHardcodedRangeUse;
   end;
 
   IwbDataContainer = interface(IwbContainer)
@@ -14348,9 +14354,16 @@ begin
     _File := aElement._File;
     if Assigned(_File) then begin
       try
-        MainRecord := _File.RecordByFormID[TwbFormID.FromCardinal(aInt), True, aElement.MastersUpdated];
+
+        if (FormID.ObjectID < $800) and not _File.AllowHardcodedRangeUse then begin
+          FormID.FileID := TwbFileID.Null;
+          MainRecord := wbGetGameMasterFile.RecordByFormID[FormID, True, False];
+        end else
+          MainRecord := _File.RecordByFormID[FormID, True, aElement.MastersUpdated];
+
         if Assigned(MainRecord) then
           Exit;
+
         if wbDisplayLoadOrderFormID then
           FormID := _File.FileFormIDtoLoadOrderFormID(FormID, aElement.MastersUpdated);
       except
@@ -14556,15 +14569,16 @@ begin
   if not wbDisplayLoadOrderFormID then
     Exit;
 
-  if Result < $800 then
-    Exit;
-
   if Result = $FFFFFFFF then
     Exit;
 
   if Assigned(aElement) then begin
     _File := aElement._File;
     if Assigned(_File) then begin
+      if not _File.AllowHardcodedRangeUse then
+        if Result < $800 then
+          Exit;
+
       //Result is a load order FormID right now, we need to store a file specific FormID
       Result := _File.LoadOrderFormIDtoFileFormID(TwbFormID.FromCardinal(Result), aElement.MastersUpdated).ToCardinal;
     end;
@@ -14866,7 +14880,8 @@ end;
 
 function TwbFormIDDefFormater.GetLinksTo(aInt: Int64; const aElement: IwbElement): IwbElement;
 var
-  _File : IwbFile;
+  _File  : IwbFile;
+  FormID : TwbFormID;
 begin
   Result := nil;
 
@@ -14883,24 +14898,38 @@ begin
   else if Assigned(aElement) then begin
     _File := aElement._File;
     if Assigned(_File) then try
-      Result := _File.RecordByFormID[TwbFormID.FromCardinal(aInt), True, aElement.MastersUpdated];
+      FormID := TwbFormID.FromCardinal(aInt);
+      if (FormID.ObjectID < $800) and not _File.AllowHardcodedRangeUse then begin
+        FormID.FileID := TwbFileID.Null;
+        Result := wbGetGameMasterFile.RecordByFormID[FormID, True, False];
+      end else
+        Result := _File.RecordByFormID[FormID, True, aElement.MastersUpdated];
     except end;
   end;
 end;
 
 function TwbFormIDDefFormater.GetMainRecord(aInt: Int64; const aElement: IwbElement): IwbMainRecord;
 var
-  _File: IwbFile;
+  _File  : IwbFile;
+  FormID : TwbFormID;
 begin
   Result := nil;
   if dfUseLoadOrder in defFlags then
     Result := wbRecordByLoadOrderFormID(TwbFormID.FromCardinal(aInt))
-  else
-    if Assigned(aElement) then begin
-      _File := aElement._File;
-      if Assigned(_File) then
-        Result := _File.RecordByFormID[TwbFormID.FromCardinal(aInt), True, aElement.MastersUpdated];
+  else begin
+  FormID := TwbFormID.FromCardinal(aInt);
+
+  if Assigned(aElement) then begin
+    _File := aElement._File;
+    if Assigned(_File) then begin
+      if (FormID.ObjectID < $800) and not _File.AllowHardcodedRangeUse then begin
+        FormID.FileID := TwbFileID.Null;
+        Result := wbGetGameMasterFile.RecordByFormID[FormID, True, False];
+      end else
+        Result := _File.RecordByFormID[FormID, True, aElement.MastersUpdated];
     end;
+  end;
+  end;
 end;
 
 function TwbFormIDDefFormater.IsValid(const aSignature: TwbSignature): Boolean;
@@ -14952,13 +14981,26 @@ begin
 end;
 
 function TwbFormIDDefFormater.MastersUpdated(aInt: Int64; const aOld, aNew: TwbFileIDs; aOldCount, aNewCount: Byte; const aElement: IwbElement): Int64;
+var
+  _File: IwbFile;
+  AllowHardcodedRangeUse : Boolean;
 begin
   Result := aInt;
-
   if dfUseLoadOrder in defFlags then
     Exit;
-  if (aInt < $800) or (aInt = $FFFFFFFF) and (IsValid('ACVA') or IsValid('FFFF')) then
+  if (aInt = $FFFFFFFF) and (IsValid('ACVA') or IsValid('FFFF')) then
     Exit;
+
+  AllowHardcodedRangeUse := False;
+  if Assigned(aElement) then begin
+    _File := aElement._File;
+    if Assigned(_File) then
+      AllowHardcodedRangeUse := _File.AllowHardcodedRangeUse;
+  end;
+
+  if not AllowHardcodedRangeUse then
+    if (aInt and $FFFFFF) < $800 then
+      Exit(aInt and $FFF);
 
   if aInt <> 0 then
     Result := FixupFormID(TwbFormID.FromCardinal(aInt), aOld, aNew, aOldCount, aNewCount).ToCardinal;
@@ -15118,11 +15160,18 @@ begin
           {stored FormID is already a LoadOrder FormID}
           FormID := TwbFormID.FromCardinal(aInt);
           MainRecord := wbRecordByLoadOrderFormID(FormID);
-        end else begin
+        end else if (FormID.ObjectID < $800) and not _File.AllowHardcodedRangeUse then begin
+          FormID.FileID := TwbFileID.Null;
+          MainRecord := wbGetGameMasterFile.RecordByFormID[FormID, True, False];
+        end else  begin
+          MainRecord := _File.RecordByFormID[FormID, True, aElement.MastersUpdated];
           if wbDisplayLoadOrderFormID then
-            FormID := _File.FileFormIDtoLoadOrderFormID(FormID, aElement.MastersUpdated);
-          MainRecord := _File.RecordByFormID[TwbFormID.FromCardinal(aInt), True, aElement.MastersUpdated];
+            if Assigned(MainRecord) then
+              FormID := MainRecord.LoadOrderFormID
+            else
+              FormID := _File.FileFormIDtoLoadOrderFormID(FormID, aElement.MastersUpdated);
         end;
+
         if Assigned(MainRecord) then begin
           if aForSummary then begin
             if Assigned(aElement) and MainRecord.Equals(aElement.ContainingMainRecord)
@@ -16375,7 +16424,19 @@ begin
     _File := aElement._File;
     if Assigned(_File) then begin
       try
-        MainRecord := _File.RecordByFormID[TwbFormID.FromCardinal(aInt), True, aElement.MastersUpdated];
+
+        if (FormID.ObjectID < $800) and not _File.AllowHardcodedRangeUse then begin
+          FormID.FileID := TwbFileID.Null;
+          MainRecord := wbGetGameMasterFile.RecordByFormID[FormID, True, False];
+        end else  begin
+          MainRecord := _File.RecordByFormID[FormID, True, aElement.MastersUpdated];
+          if wbDisplayLoadOrderFormID then
+            if Assigned(MainRecord) then
+              FormID := MainRecord.LoadOrderFormID
+            else
+              FormID := _File.FileFormIDtoLoadOrderFormID(FormID, aElement.MastersUpdated);
+        end;
+
         if Assigned(MainRecord) then begin
           Found := MainRecord.Signature;
           if fidcValidRefs.IndexOf(Found) < 0 then
@@ -16391,8 +16452,6 @@ begin
           end;
           Exit;
         end;
-        if wbDisplayLoadOrderFormID then
-          FormID := _File.FileFormIDtoLoadOrderFormID(FormID, aElement.MastersUpdated);
       except
         on E: Exception do begin
           Result := E.Message;

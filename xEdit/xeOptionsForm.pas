@@ -99,7 +99,6 @@ type
     cbCollapseScriptProperties: TCheckBox;
     cbCollapseConditions: TCheckBox;
     cbCollapseBenignArray: TCheckBox;
-    cbExtendedESL: TCheckBox;
     tsViewSettings: TTabSheet;
     lblFieldsToCollapse: TLabel;
     cbCollapseLeveledItems: TCheckBox;
@@ -110,6 +109,7 @@ type
     cbCollapseRGBA: TCheckBox;
     cbCollapseVec3: TCheckBox;
     cbDecodeTexture: TCheckBox;
+    cbConvertIntFormID: TCheckBox;
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormCreate(Sender: TObject);
     procedure cbConflictThisChange(Sender: TObject);

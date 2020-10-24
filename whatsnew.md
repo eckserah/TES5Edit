@@ -1,3 +1,17 @@
+# What's new in xEdit 4.0.4?
+
+## Bugfixes
+
+* #792 - Flipped indexes in display of blocks and sub-blocks 
+* #803 - after cleaning, some new worldspaces from DLCs may not load their temporary records correctly
+* #823 - FO3: Anchorage.esm & PointLookout.esm need Mark Modified applied during QAC 
+* #848 - Records with hardcoded FormIDs show as new records instead of overrides/injected
+* #853 - FNV - cleaning dead money master erases map geometry
+* #855 - After cleaning dlcnukaworld.esm, items in Nuka-Town market vanish
+* #863 - FO4: DefaultObject forms (DFOB) should override via EditorID
+* #871 - Updates for Static Collections [FO4] 
+* (reported on Discord) - .esl extensions don't always force loading as ESL correctly when the module is not ESL flagged
+
 # What's new in xEdit 4.0.3?
 
 ## Bugfixes
