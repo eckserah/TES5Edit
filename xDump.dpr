@@ -105,7 +105,7 @@ end;
 
 procedure writeLineToFile(line:String);
 begin
-  writeln(outFile,line);
+  write(outFile,line);
 end;
 
 procedure writeToFile(content:String);
