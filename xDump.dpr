@@ -1265,6 +1265,8 @@ begin
       DoInitPath;
       if (wbToolMode in [tmDump]) and (wbDataPath = '') then // Dump can be run in any directory configuration
         wbDataPath := CheckParamPath;
+      if (FindCmdLineSwitch('NoLoc')) then
+        wbNoLocalization := True;
 
       wbLoadModules;
 
