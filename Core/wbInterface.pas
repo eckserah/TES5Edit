@@ -270,6 +270,7 @@ var
   wbPatron                           : Boolean = False;
   wbNoGitHubCheck                    : Boolean = False;
   wbNoNexusModsCheck                 : Boolean = False;
+  wbNoLocalization                   : Boolean = False;
 
   wbCheckExpectedBytes : Boolean = True;
 

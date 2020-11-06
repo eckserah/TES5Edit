@@ -231,13 +231,18 @@ function TwbLocalizationFile.Find(ID: Cardinal; out s: string): Boolean;
 var
   idx: integer;
 begin
-  s := '';
-  idx := fStrings.IndexOfObject(Pointer(ID));
-  Result := idx >= 0;
-  if Result then
-    s := fStrings[idx]
-  else
-    s := '<Error: Unknown lstring ID ' + IntToHex(ID, 8) + '>';
+  if (wbNoLocalization) then begin
+    s := IntToHex(ID,8);
+  end
+  else begin
+    s := '';
+    idx := fStrings.IndexOfObject(Pointer(ID));
+    Result := idx >= 0;
+    if Result then
+      s := fStrings[idx]
+    else
+      s := '<Error: Unknown lstring ID ' + IntToHex(ID, 8) + '>';
+  end;
 end;
 
 function TwbLocalizationFile.ReadZString(aStream: TMemoryStream): string;
@@ -413,11 +418,15 @@ var
   idx: integer;
 begin
   Result := '';
-  idx := fStrings.IndexOfObject(Pointer(Index));
-  if idx <> -1 then
-    Result := fStrings[idx]
-  else
-    Result := '<Error: Unknown lstring ID ' + IntToHex(Index, 8) + '>';
+  if (wbNoLocalization) then begin
+    Result := IntToHex(Index,8);
+  end else begin
+    idx := fStrings.IndexOfObject(Pointer(Index));
+    if idx <> -1 then
+      Result := fStrings[idx]
+    else
+      Result := '<Error: Unknown lstring ID ' + IntToHex(Index, 8) + '>';
+  end;
 end;
 
 procedure TwbLocalizationFile.Put(Index: Cardinal; const S: string);
