@@ -1586,6 +1586,8 @@ begin
         DumpCheckReport := False;
       end;
 
+
+
       if not Assigned(wbContainerHandler) then
         wbContainerHandler := wbCreateContainerHandler;
 
