@@ -1580,7 +1580,7 @@ begin
       end;
 
       if wbToolMode in [tmExport] then begin
-        wbLoadBSAs := True;
+        wbLoadBSAs := False;
         wbReportMode := False;
         wbMoreInfoForUnknown:= False;
         DumpCheckReport := False;
