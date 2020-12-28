@@ -1580,11 +1580,13 @@ begin
       end;
 
       if wbToolMode in [tmExport] then begin
-        wbLoadBSAs := False;
+        //wbLoadBSAs := False;
         wbReportMode := False;
         wbMoreInfoForUnknown:= False;
         DumpCheckReport := False;
       end;
+
+
 
       if not Assigned(wbContainerHandler) then
         wbContainerHandler := wbCreateContainerHandler;
