@@ -5137,7 +5137,7 @@ const
     (Index: 934; AltIndex: 6000; Name: 'GetSecondsSinceLastAttack'),
     (Index: 935; AltIndex: 9001; Name: 'IsPlayerInShelterOwned'),
     (Index: 936; AltIndex: 9002; Name: 'IsPlayerInShelter'),
-    (Index: 937; AltIndex: 9003; Name: 'IsInShelterLocation')
+    (Index: 937; AltIndex: 9003; Name: 'IsInShelterLocation'; Desc: 'Is this ref in a shelter location?')
   );
 
 var
@@ -7937,7 +7937,7 @@ begin
    {114} 'Set VATS Gun-Fu',
    {115} 'Mod Outgoing Limb Damage',
    {116} 'Mod Restore Action Cost Value',
-   {117} 'Apply Attacker Combat Hit Spell',
+   {117} 'Mod VATS Splash Damage',
    {118} 'Mod Incoming Battery Damage',
    {119} 'Mod VATS Critical Charge',
    {120} 'Mod Exp Location',
@@ -7980,8 +7980,8 @@ begin
    {157} 'Set Fatigue to AP Mult',
    {158} 'Mod Item Weight',
    {159} 'Set Alt Revive Item',
-   {160} 'Apply Revivee Spell',
-   {161} 'Apply Reviver Spell',
+   {160} 'Mod VATS Splash Damage Radius',
+   {161} 'Apply VATS Splash Damage Spell',
    {162} 'Mod Bleedout Time ',
    {163} 'Mod Item Condition Loss',
    {164} 'Mod Crafting Creation Recipe Level',
@@ -8014,7 +8014,8 @@ begin
    {191} 'Mod Crafted Item Bonus Health',
    {192} 'Set Cheat Death',
    {193} 'Apply Combat Hit Spell Taken',
-   {194} 'Apply On Death Spell'
+   {194} 'Apply On Death Spell',
+   {195} 'Mod Max Barter Currency'
   ]);
 
   wbEquipType := wbFlags([
@@ -11321,8 +11322,8 @@ begin
         wbFormIDCk('Perk', [PERK, NULL])
       ]),
       wbStruct('Text Offset' , [
-        wbInteger('X', itU32),
-        wbInteger('Y', itU32)
+        wbInteger('X', itS32),
+        wbInteger('Y', itS32)
       ])
     ], cpNormal, True),
     wbLStringKC(CNAM, 'Description', 0, cpTranslate),
