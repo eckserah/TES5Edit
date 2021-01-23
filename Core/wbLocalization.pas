@@ -232,7 +232,7 @@ var
   idx: integer;
 begin
   if (wbNoLocalization) then begin
-    s := IntToHex(ID,8);
+    s := 's' + IntToHex(ID,8);
   end
   else begin
     s := '';
@@ -419,7 +419,7 @@ var
 begin
   Result := '';
   if (wbNoLocalization) then begin
-    Result := IntToHex(Index,8);
+    Result := 's' + IntToHex(Index,8);
   end else begin
     idx := fStrings.IndexOfObject(Pointer(Index));
     if idx <> -1 then
