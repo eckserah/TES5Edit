@@ -76,6 +76,7 @@ var
   outFile         : TextFile;
   outFolder       : String = '';
   outputFullNames : Boolean = False;
+  outputFullIDs   : Boolean = False;
 
 procedure setFolder(folderPath:String);
 begin
@@ -94,7 +95,6 @@ begin
   CloseFile(outFile);
 end;
 
-
 procedure setFile(fileName:String;closePrevious:Boolean = True);
 begin
   if closePrevious then
@@ -111,6 +111,55 @@ end;
 procedure writeToFile(content:String);
 begin
   write(outFile,content);
+end;
+
+function ExtractFormID(const aStr: string): string;
+var
+  i, a : integer;
+  c : char;
+begin
+  a := Pos('[', aStr);
+  if (a <= 0) then
+    exit(aStr);
+  if (Length(aStr) < a+9) or (aStr[a+9] <> ']') then
+    exit(aStr);
+  i := a+1;
+  while i < a+9 do begin
+    c := aStr[i];
+    inc(i);
+    if SysUtils.CharInSet(c, ['0'..'9', 'A'..'F']) then
+      continue;
+    exit(aStr);
+  end;
+  exit(copy(aStr ,a+1 , 8));
+end;
+
+function EscapeJSON(const aStr: string): string;
+var
+  i, j, l : integer;
+  c: char;
+begin
+  i := 1;
+  j := 1;
+  result := '';
+  l := length(aStr);
+  while i <= l do begin
+    c := aStr[i];
+    if SysUtils.CharInSet(c, ['"', '\', #0..#31]) then begin
+      result := result + copy(aStr, j, i-j);
+      case c of
+        '\': result := result + '\\';
+        '"': result := result + '\"';
+        #8: result := result + '\b';
+        #9: result := result + '\t';
+        #10: result := result + '\n';
+        #13: result := result + '\r';
+      end;
+      j := i+1;
+    end;
+    inc(i);
+  end;
+  result := result + copy(aStr, j, i-1);
 end;
 
 procedure ReportProgress(const aStatus: string);
@@ -747,12 +796,8 @@ begin
     Name := aElement.Name;
 
     if ((Pos('[',Name) > 0) and (Pos(']',Name) > 0)) then begin
-      if (Pos('GRUP Cell Children of',Name) = 1) then  begin
-        Name:= 'children of '+copy(Name,Pos('[',Name)+1,8);
-      end else if (Pos('GRUP Cell Persistent Children',Name) = 1) then begin
-        Name:= 'persistant of '+copy(Name,Pos('[',Name)+1,8);
-      end else if (Pos('GRUP Cell Temporary Children',Name) = 1) then begin
-        Name:= 'temporary of '+copy(Name,Pos('[',Name)+1,8);
+      if (Pos('GRUP ', Name) = 1) then begin
+        Name := copy(Name, 6, Pos('of', Name)-3) + copy(Name,Pos('[',Name)+1,8)
       end else begin
         Name := copy(Name,Pos('[',Name)+1,8);
       end;
@@ -768,17 +813,12 @@ begin
       firstElement := True;
       Name := copy(Name,11,4);
     end;
-    Value := StringReplace(aElement.Value,'\','\\',[rfReplaceAll]);
-    Value := StringReplace(Value, #13#10, '', [rfReplaceAll]);
-    Value := StringReplace(Value, '"', '\"', [rfReplaceAll]);
 
-
-
+    Value := EscapeJSON(aElement.Value);
 
     // Checks the value for brackets, if it has brackets get the FORMID from within
-    if ((Pos('[',Value) > 0) and (Pos(']',Value) > 0)) then begin
-      Value := copy(Value,Pos('[',Value)+1,8);
-    end;
+    if not outputFullIDs then
+      Value := ExtractFormID(Value);
 
     // if dumphidden flag is on, or if name != unused
     if DumpHidden or ((aElement.Name <> 'Unused') and (Name <> 'Unused')) then begin
@@ -1324,6 +1364,10 @@ begin
 
       if wbFindCmdLineParam('fullnames',s) then begin
         outputFullNames := True;
+      end;
+
+      if wbFindCmdLineParam('fullids',s) then begin
+        outputFullIDs := True;
       end;
 
       if wbFindCmdLineParam('dg', s) then begin
