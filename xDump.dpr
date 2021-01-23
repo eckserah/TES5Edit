@@ -796,12 +796,8 @@ begin
     Name := aElement.Name;
 
     if ((Pos('[',Name) > 0) and (Pos(']',Name) > 0)) then begin
-      if (Pos('GRUP Cell Children of',Name) = 1) then  begin
-        Name:= 'children of '+copy(Name,Pos('[',Name)+1,8);
-      end else if (Pos('GRUP Cell Persistent Children',Name) = 1) then begin
-        Name:= 'persistant of '+copy(Name,Pos('[',Name)+1,8);
-      end else if (Pos('GRUP Cell Temporary Children',Name) = 1) then begin
-        Name:= 'temporary of '+copy(Name,Pos('[',Name)+1,8);
+      if (Pos('GRUP ', Name) = 1) then begin
+        Name := copy(Name, 6, Pos('of', Name)-3) + copy(Name,Pos('[',Name)+1,8)
       end else begin
         Name := copy(Name,Pos('[',Name)+1,8);
       end;
