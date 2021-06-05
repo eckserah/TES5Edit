@@ -381,6 +381,7 @@ type
     procedure MergeStorageInternal(var aBasePtr: Pointer; aEndPtr: Pointer); virtual;
     procedure InformStorage(var aBasePtr: Pointer; aEndPtr: Pointer); virtual;
     procedure Remove; virtual;
+    procedure BeforeActualRemove; virtual;
     function CanContainFormIDs: Boolean; virtual;
     function AddIfMissing(const aElement: IwbElement; aAsNew, aDeepCopy : Boolean; const aPrefixRemove, aSuffixRemove, aPrefix, aSuffix: string; aAllowOverwrite: Boolean): IwbElement;
     function AddIfMissingInternal(const aElement: IwbElement; aAsNew, aDeepCopy : Boolean; const aPrefixRemove, aSuffixRemove, aPrefix, aSuffix: string; aAllowOverwrite: Boolean): IwbElement; virtual;
@@ -1163,6 +1164,8 @@ type
 
     procedure MarkModifiedRecursive(const aElementTypes: TwbElementTypes); override;
 
+    procedure UpdateStorageFromElements; override;
+
     {---IwbMainRecord---}
     function GetDef: IwbNamedDef; override;
     function GetMainRecordDef: IwbMainRecordDef;
@@ -1817,6 +1820,11 @@ type
                               aPos       : Integer);
 
     procedure DoInit(aNeedSorted: Boolean); override;
+
+    function Add(const aName: string; aSilent: Boolean): IwbElement; override;
+
+    procedure BeforeActualRemove; override;
+    procedure DoAfterSet(const aOldValue, aNewValue: Variant); override;
 
     function GetValue: string; override;
     function GetCheck: string; override;
@@ -3454,7 +3462,7 @@ end;
 
 function TwbFile.GetAllowHardcodedRangeUse: Boolean;
 begin
-  Result := (wbGameMode = gmFO4) and (GetVersion >= 1.0);
+  Result := (wbGameMode = gmTES3) or ((wbGameMode = gmFO4) and (GetVersion >= 1.0));
 end;
 
 function TwbFile.GetBaseName: string;
@@ -7621,7 +7629,6 @@ begin
     IwbMainRecord(mrMasteR).AddReferencedBy(aMainRecord);
     Exit;
   end;
-(**)
 {$IFDEF USE_PARALLEL_BUILD_REFS}
   if wbBuildingRefsParallel then
     _ResizeLock.Enter;
@@ -7641,10 +7648,10 @@ begin
     Include(mrStates, mrsReferencedByUnsorted);
 {$IFDEF USE_PARALLEL_BUILD_REFS}
   finally
-    _ResizeLock.Leave;
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
   end;
 {$ENDIF}
-(**)
 end;
 
 procedure TwbMainRecord.AddReferencedFromID(aFormID: TwbFormID);
@@ -8306,14 +8313,13 @@ var
 
     if wbGameMode >= gmFO3 then begin
       case wbGameMode of
-        gmFO76           : BasePtr.mrsVersion^ := 184;
-        gmFO4, gmFO4VR   : BasePtr.mrsVersion^ := 131;
-        gmSSE, gmTES5VR  : BasePtr.mrsVersion^ := 44;
-        gmTES5           : BasePtr.mrsVersion^ := 43;
-        gmEnderal        : BasePtr.mrsVersion^ := 43;
-        gmFNV            : BasePtr.mrsVersion^ := 15;
-        gmFO3            : BasePtr.mrsVersion^ := 15;
-        else               BasePtr.mrsVersion^ := 15;
+        gmFO76                       : BasePtr.mrsVersion^ := 184;
+        gmFO4, gmFO4VR               : BasePtr.mrsVersion^ := 131;
+        gmSSE, gmTES5VR, gmEnderalSE : BasePtr.mrsVersion^ := 44;
+        gmTES5, gmEnderal            : BasePtr.mrsVersion^ := 43;
+        gmFNV                        : BasePtr.mrsVersion^ := 15;
+        gmFO3                        : BasePtr.mrsVersion^ := 15;
+        else                           BasePtr.mrsVersion^ := 15;
       end;
       BasePtr.mrsVCS2^ := DefaultVCS2;
     end;
@@ -8860,9 +8866,11 @@ begin
   Result := False;
 
 {$IFDEF USE_PARALLEL_BUILD_REFS}
-  Assert(not wbBuildingRefsParallel);
+  //Assert(not wbBuildingRefsParallel);
+  if wbBuildingRefsParallel then
+    _ResizeLock.Enter;
+  try
 {$ENDIF}
-
   L := 0;
   H := Pred(mrReferencedByCount);
   while L <= H do begin
@@ -8883,6 +8891,12 @@ begin
     end;
   end;
   Index := L;
+{$IFDEF USE_PARALLEL_BUILD_REFS}
+  finally
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
+  end;
+{$ENDIF}
 end;
 
 procedure TwbMainRecord.FindUsedMasters(aMasters: PwbUsedMasters);
@@ -10319,12 +10333,20 @@ begin
     Exit(IwbMainRecord(mrMaster).ReferencedBy[aIndex]);
 
 {$IFDEF USE_PARALLEL_BUILD_REFS}
-  Assert(not wbBuildingRefsParallel);
+  //Assert(not wbBuildingRefsParallel);
+  if wbBuildingRefsParallel then
+    _ResizeLock.Enter;
+  try
 {$ENDIF}
-
   if mrsReferencedByUnsorted in mrStates then
     SortReferencedBy;
   Result := mrReferencedBy[aIndex];
+{$IFDEF USE_PARALLEL_BUILD_REFS}
+  finally
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
+  end;
+{$ENDIF}
 end;
 
 function TwbMainRecord.GetReferencedByCount: Integer;
@@ -10333,10 +10355,18 @@ begin
     Exit(IwbMainRecord(mrMaster).ReferencedByCount);
 
 {$IFDEF USE_PARALLEL_BUILD_REFS}
-  Assert(not wbBuildingRefsParallel);
+  //Assert(not wbBuildingRefsParallel);
+  if wbBuildingRefsParallel then
+    _ResizeLock.Enter;
+  try
 {$ENDIF}
-
   Result := mrReferencedByCount;
+{$IFDEF USE_PARALLEL_BUILD_REFS}
+  finally
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
+  end;
+{$ENDIF}
 end;
 
 function TwbMainRecord.GetReferenceFile: IwbFile;
@@ -11515,9 +11545,11 @@ begin
     Exit;
   end;
 {$IFDEF USE_PARALLEL_BUILD_REFS}
-  Assert(not wbBuildingRefsParallel);
+  //Assert(not wbBuildingRefsParallel);
+  if wbBuildingRefsParallel then
+    _ResizeLock.Enter;
+  try
 {$ENDIF}
-
   if mrsReferencedByUnsorted in mrStates then
     SortReferencedBy;
 
@@ -11533,6 +11565,12 @@ begin
       mrReferencedBySize := 0;
     end;
   end;
+{$IFDEF USE_PARALLEL_BUILD_REFS}
+  finally
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
+  end;
+{$ENDIF}
 end;
 
 procedure TwbMainRecord.ReportRequiredMasters(aStrings: TStrings; aAsNew: Boolean; Recursive: Boolean = True; Initial: Boolean = false);
@@ -12098,12 +12136,20 @@ end;
 procedure TwbMainRecord.SortReferencedBy;
 begin
 {$IFDEF USE_PARALLEL_BUILD_REFS}
-  Assert(not wbBuildingRefsParallel);
+  //Assert(not wbBuildingRefsParallel);
+  if wbBuildingRefsParallel then
+    _ResizeLock.Enter;
+  try
 {$ENDIF}
-
   Exclude(mrStates, mrsReferencedByUnsorted);
   if mrReferencedByCount > 1  then
     wbMergeSortPtr(@mrReferencedBy[0], mrReferencedByCount, CompareReferencedBy);
+{$IFDEF USE_PARALLEL_BUILD_REFS}
+  finally
+    if wbBuildingRefsParallel then
+      _ResizeLock.Leave;
+  end;
+{$ENDIF}
 end;
 
 procedure TwbMainRecord.UpdateCellChildGroup;
@@ -12372,6 +12418,16 @@ procedure TwbMainRecord.UpdateRefs;
 begin
   if (csRefsBuild in cntStates) then
     BuildRef;
+end;
+
+procedure TwbMainRecord.UpdateStorageFromElements;
+begin
+  if not (dcfStorageInvalid in dcFlags) then
+    Exit;
+  // this is not optimal, as it invalidates all currently referenced child elements,
+  // but it's better than calling inherited which corrupts data
+  // under normal circumstances, this method should never be called
+  CollapseStorage(nil, True);
 end;
 
 procedure TwbMainRecord.WriteToStreamInternal(aStream: TStream; aResetModified: TwbResetModified);
@@ -16061,6 +16117,11 @@ begin
   Result := TargetValueDef.Assign(Self, aIndex, aElement, aOnlySK);;
 end;
 
+procedure TwbElement.BeforeActualRemove;
+begin
+  {can be overriden}
+end;
+
 procedure TwbElement.BeforeDestruction;
 begin
   if esConstructionComplete in eStates then
@@ -17072,6 +17133,7 @@ begin
     try
       SetModified(True);
       InvalidateParentStorage;
+      BeforeActualRemove;
       lContainer.RemoveElement(SelfRef);
     finally
       lContainer.EndUpdate;
@@ -17455,6 +17517,11 @@ end;
 
 { TwbSubRecordArray }
 
+function TwbSubRecordArray.Add(const aName: string; aSilent: Boolean): IwbElement;
+begin
+  Result := Assign(StrToIntDef(aName, High(Integer)), nil, False);
+end;
+
 function TwbSubRecordArray.AddIfMissingInternal(const aElement: IwbElement; aAsNew, aDeepCopy: Boolean; const aPrefixRemove, aSuffixRemove, aPrefix, aSuffix: string; aAllowOverwrite: Boolean): IwbElement;
 var
   SelfRef   : IwbContainerElementRef;
@@ -17590,6 +17657,34 @@ begin
   end;
 end;
 
+procedure TwbSubRecordArray.BeforeActualRemove;
+var
+  CountPath      : string;
+  Container      : IwbContainerElementRef;
+  CounterElement : IwbElement;
+
+  SelfRef    : IwbContainerElementRef;
+begin
+  SelfRef := Self;
+
+  inherited;
+
+  CountPath := arcDef.CountPath;
+
+  if CountPath = '' then
+    Exit;
+
+  Container := GetContainer as IwbContainerElementRef;
+  if not Assigned(Container) then
+    Exit;
+
+  CounterElement := Container.ElementByPath[CountPath];
+  if not Assigned(CounterElement) then
+    Exit;
+
+  CounterElement.NativeValue := 0;
+end;
+
 function TwbSubRecordArray.CanAssignInternal(aIndex: Integer; const aElement: IwbElement; aCheckDontShow: Boolean): Boolean;
 begin
   Result := False;
@@ -17658,6 +17753,34 @@ begin
     SetModified(True);
     InvalidateStorage;
   end;
+end;
+
+procedure TwbSubRecordArray.DoAfterSet(const aOldValue, aNewValue: Variant);
+var
+  CountPath      : string;
+  Container      : IwbContainerElementRef;
+  CounterElement : IwbElement;
+
+  SelfRef    : IwbContainerElementRef;
+begin
+  SelfRef := Self;
+
+  inherited;
+
+  CountPath := arcDef.CountPath;
+
+  if CountPath = '' then
+    Exit;
+
+  Container := GetContainer as IwbContainerElementRef;
+  if not Assigned(Container) then
+    Exit;
+
+  CounterElement := Container.ElementByPath[CountPath];
+  if not Assigned(CounterElement) then
+    Exit;
+
+  CounterElement.NativeValue := GetElementCount;
 end;
 
 procedure TwbSubRecordArray.DoInit(aNeedSorted: Boolean);

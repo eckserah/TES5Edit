@@ -5347,7 +5347,7 @@ var
   Container       : IwbContainer;
   SelfAsContainer : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if wbCounterAfterSet('IDLC - Animation Count', aElement) then
       Exit;
 
@@ -5369,7 +5369,7 @@ var
   Elems           : IwbElement;
   Container       : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if wbCounterContainerAfterSet('IDLC - Animation Count', 'IDLA - Animations', aElement) then
       Exit;
 
@@ -5621,7 +5621,7 @@ var
   SelfAsContainer : IwbContainer;
 begin
   // the counter is double of entries (each member of struct is counted)
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if not Supports(aElement.Container, IwbContainer, Container) then
       Exit;
 
@@ -8909,7 +8909,7 @@ begin
         {0} 'Int',
         {1} 'Float',
         {2} 'Bool',
-        {3} 'Unknown 3',
+        {3} 'String',
         {4} 'FormID,Int',
         {5} 'Enum',
         {6} 'FormID,Float'
@@ -9931,7 +9931,9 @@ begin
       ]))
     ]),
     wbString(SNAM, 'Subtype Name', 4),
-    wbInteger(TIFC, 'Info Count', itU32, nil, cpBenign)
+    wbInteger(TIFC, 'Info Count', itU32, nil, cpBenign),
+    wbArray(INOM, 'INFO Order (Masters only)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave),
+    wbArray(INOA, 'INFO Order (All previous modules)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave)
   ]);
 
   wbRecord(DOOR, 'Door',
@@ -12329,7 +12331,7 @@ begin
     wbInteger(FNAM, 'Flags', itU32, wbFlags([
       {0x00000001} 'Begin on Quest Start',
       {0x00000002} 'Stop on Quest End',
-      {0x00000004} 'Unknown 2',
+      {0x00000004} 'Show All Text',
       {0x00000008} 'Repeat Conditions While True',
       {0x00000010} 'Interruptible',
       {0x00000020} 'Unknown 5',
@@ -14963,7 +14965,7 @@ begin
       wbFormIDCk(INAM, 'Image Space', [IMGS]),
       wbRArrayS('Linked Rooms',
         wbFormIDCk(XLRM, 'Linked Room', [REFR])
-      )
+      ).SetCountPath('XRMR\Linked Rooms Count')
     ], []),
     wbEmpty(XMBP, 'MultiBound Primitive Marker', cpIgnore),
 
@@ -16000,7 +16002,7 @@ begin
       wbByteArray(WLEV, 'Data')
     ], []),
     wbOFST,
-    wbUnknown(CLSZ)
+    wbByteArray(CLSZ, 'Cell Size Data')
   ], False, nil, cpNormal, False, wbWRLDAfterLoad);
 
 

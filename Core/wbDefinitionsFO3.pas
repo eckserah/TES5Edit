@@ -1392,7 +1392,7 @@ procedure wbHeadPartsAfterSet(const aElement: IwbElement; const aOldValue, aNewV
 var
   Container : IwbContainerElementRef;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if Supports(aElement, IwbContainerElementRef, Container) then
       if (Container.Elements[0].NativeValue = 1) and (Container.ElementCount > 2) then
         Container.RemoveElement(1);
@@ -3934,7 +3934,7 @@ var
   Container       : IwbContainer;
   SelfAsContainer : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
 //    if not wbCounterAfterSet('IDLC - Animation Count', aElement) then
       if Supports(aElement.Container, IwbContainer, Container) then begin
         Element := Container.ElementByPath['IDLC\Animation Count'];
@@ -3953,7 +3953,7 @@ var
   Elems           : IwbElement;
   Container       : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
 //    if not wbCounterContainerAfterSet('IDLC - Animation Count', 'IDLA - Animations', aElement) then
       if Supports(aElement, IwbContainer, Container) then begin
         Element := Container.ElementByPath['IDLC\Animation Count'];
@@ -5168,7 +5168,7 @@ begin
       wbFloat('Weight')
     ], cpNormal, True),
     wbStruct(DNAM, '', [
-      wbInteger('AR', itS16, wbDiv(100)),
+      wbInteger('DR', itS16, wbDiv(100)),
       wbInteger('Flags', itU16, wbFlags([
         'Modulates Voice'
       ]))
@@ -5195,7 +5195,7 @@ begin
       wbFloat('Weight')
     ], cpNormal, True),
     wbStruct(DNAM, '', [
-      wbInteger('AR', itS16, wbDiv(100)),
+      wbInteger('DR', itS16, wbDiv(100)),
       wbInteger('Flags', itU16, wbFlags([
         'Modulates Voice'
       ]))
@@ -5877,7 +5877,9 @@ begin
         'Rumors',
         'Top-level'
       ]))
-    ], cpNormal, True, nil, 1)
+    ], cpNormal, True, nil, 1),
+    wbArray(INOM, 'INFO Order (Masters only)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave),
+    wbArray(INOA, 'INFO Order (All previous modules)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave)
   ], True);
 
   wbRecord(DOOR, 'Door', [
@@ -9288,7 +9290,7 @@ begin
       ]),
       wbRArrayS('Linked Rooms',
         wbFormIDCk(XLRM, 'Linked Room', [REFR])
-      )
+      ).SetCountPath('XRMR\Linked Rooms Count')
     ], []),
 
     wbSizePosRot(XOCP, 'Occlusion Plane Data'),

@@ -958,10 +958,8 @@ procedure IwbMainRecord_SetEditorID(var Value: Variant; Args: TJvInterpreterArgs
 var
   MainRecord: IwbMainRecord;
 begin
-  Value := '';
   if Supports(IInterface(Args.Values[0]), IwbMainRecord, MainRecord) then
     MainRecord.EditorID := Args.Values[1];
-    Value := MainRecord.EditorID;
 end;
 
 procedure IwbMainRecord_FixedFormID(var Value: Variant; Args: TJvInterpreterArgs);
@@ -1519,6 +1517,14 @@ begin
     Value := _File.RecordByEditorID[string(Args.Values[1])];
 end;
 
+procedure IwbFile_GetMasters(var Value: Variant; Args: TJvInterpreterArgs);
+var
+  _File : IwbFile;
+begin
+  if Supports(IInterface(Args.Values[0]), IwbFile, _File) then
+    _File.GetMasters(TStrings(V2O(Args.Values[1])));
+end;
+
 procedure IwbFile_AddMasters(var Value: Variant; Args: TJvInterpreterArgs);
 var
   _File: IwbFile;
@@ -1884,6 +1890,7 @@ begin
     AddConst(cUnit, 'gmFO76', ord(gmFO76));
     AddConst(cUnit, 'gmSSE', ord(gmSSE));
     AddConst(cUnit, 'gmEnderal', ord(gmEnderal));
+    AddConst(cUnit, 'gmEnderalSE', ord(gmEnderalSE));
 
     { TwbElementType }
     AddConst(cUnit, 'etFile', ord(etFile));
@@ -2126,6 +2133,7 @@ begin
     AddFunction(cUnit, 'GroupBySignature', IwbFile_GroupBySignature, 2, [varEmpty, varString], varEmpty);
     AddFunction(cUnit, 'RecordByFormID', IwbFile_RecordByFormID, 3, [varEmpty, varInteger, varBoolean], varEmpty);
     AddFunction(cUnit, 'RecordByEditorID', IwbFile_RecordByEditorID, 2, [varEmpty, varString], varEmpty);
+    AddFunction(cUnit, 'GetMasters', IwbFile_GetMasters, 2, [varEmpty, varEmpty], varEmpty);
     AddFunction(cUnit, 'AddMasters', IwbFile_AddMasters, 2, [varEmpty, varEmpty], varEmpty);
     AddFunction(cUnit, 'AddMasterIfMissing', IwbFile_AddMasterIfMissing, -1, [varEmpty, varString], varEmpty);
     AddFunction(cUnit, 'HasMaster', IwbFile_HasMaster, 2, [varEmpty, varString], varEmpty);

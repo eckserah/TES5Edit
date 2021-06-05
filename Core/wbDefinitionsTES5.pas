@@ -686,9 +686,6 @@ const
   YNAM : TwbSignature = 'YNAM';
   ZNAM : TwbSignature = 'ZNAM';
 
-  INOM : TwbSignature = 'INOM'; { xEdit internal use only }
-  INOA : TwbSignature = 'INOA'; { xEdit internal use only }
-
 var
   wbPKDTSpecificFlagsUnused : Boolean;
   wbEDID: IwbSubRecordDef;
@@ -835,7 +832,7 @@ end;
 
 function IsSSE: Boolean; inline; overload;
 begin
-  Result := wbGameMode in [gmSSE, gmTES5VR];
+  Result := wbGameMode in [gmSSE, gmTES5VR, gmEnderalSE];
 end;
 
 function IsSSE(const aDef1, aDef2: String): String; inline; overload;
@@ -3162,8 +3159,8 @@ const
 {V} (Index: 370; Name: 'IsTalkingActivatorActor'; ParamType1: ptActor),
 {V} (Index: 372; Name: 'IsInList'; ParamType1: ptFormList),
 {N} (Index: 373; Name: 'GetStolenItemValue'; ParamType1: ptFaction),
-{N} (Index: 375; Name: 'GetCrimeGoldViolent'),
-{N} (Index: 376; Name: 'GetCrimeGoldNonviolent'),
+{N} (Index: 375; Name: 'GetCrimeGoldViolent'; ParamType1: ptFaction),
+{N} (Index: 376; Name: 'GetCrimeGoldNonviolent'; ParamType1: ptFaction),
 {N} (Index: 378; Name: 'HasShout'; ParamType1: ptShout),
 {V} (Index: 381; Name: 'GetHasNote'; ParamType1: ptInteger), // was ptNote
 {V} (Index: 390; Name: 'GetHitLocation'),
@@ -3198,7 +3195,7 @@ const
 {V} (Index: 453; Name: 'GetPlayerTeammate'),
 {V} (Index: 454; Name: 'GetPlayerTeammateCount'),
 {V} (Index: 458; Name: 'GetActorCrimePlayerEnemy'),
-{V} (Index: 459; Name: 'GetCrimeGold'),
+{V} (Index: 459; Name: 'GetCrimeGold'; ParamType1: ptFaction),
 {V} (Index: 463; Name: 'IsPlayerGrabbedRef'; ParamType1: ptObjectReference),
 {N} (Index: 465; Name: 'GetKeywordItemCount'; ParamType1: ptKeyword),
 {V} (Index: 470; Name: 'GetDestructionStage'),
@@ -3232,9 +3229,9 @@ const
 {V} (Index: 525; Name: 'GetVATSFrontTargetVisible'; ParamType1: ptObjectReference),
 {V} (Index: 528; Name: 'IsInCriticalStage'; ParamType1: ptCriticalStage),
 {N} (Index: 530; Name: 'GetXPForNextLevel'),
-{N} (Index: 533; Name: 'GetInfamy'),
-{N} (Index: 534; Name: 'GetInfamyViolent'),
-{N} (Index: 535; Name: 'GetInfamyNonViolent'),
+{N} (Index: 533; Name: 'GetInfamy'; ParamType1: ptFaction),
+{N} (Index: 534; Name: 'GetInfamyViolent'; ParamType1: ptFaction),
+{N} (Index: 535; Name: 'GetInfamyNonViolent'; ParamType1: ptFaction),
 {V} (Index: 543; Name: 'GetQuestCompleted'; ParamType1: ptQuest),
 {V} (Index: 547; Name: 'IsGoreDisabled'),
 {N} (Index: 550; Name: 'IsSceneActionComplete'; ParamType1: ptScene; ParamType2: ptInteger),
@@ -4439,7 +4436,7 @@ var
   Container       : IwbContainer;
   SelfAsContainer : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if wbCounterAfterSet('IDLC - Animation Count', aElement) then
       Exit;
 
@@ -4461,7 +4458,7 @@ var
   Elems           : IwbElement;
   Container       : IwbContainer;
 begin
-  if wbBeginInternalEdit then try
+  if wbBeginInternalEdit(True) then try
     if wbCounterContainerAfterSet('IDLC - Animation Count', 'IDLA - Animations', aElement) then
       Exit;
 
@@ -10543,7 +10540,7 @@ begin
     ),
     {>>> END leftover from earlier CK versions <<<}
 
-    wbLString(RNAM, 'Prompt', 0, cpTranslate),
+    wbLStringKC(RNAM, 'Prompt', 0, cpTranslate),
     wbFormIDCkNoReach(ANAM, 'Speaker', [NPC_]),
     wbFormIDCk(TWAT, 'Walk Away Topic', [DIAL]),
     wbFormIDCk(ONAM, 'Audio Output Override', [SOPM])
@@ -12504,7 +12501,7 @@ begin
       wbFormIDCk(INAM, 'Image Space', [IMGS]),
       wbRArrayS('Linked Rooms',
         wbFormIDCk(XLRM, 'Linked Room', [REFR])
-      )
+      ).SetCountPath('XRMR\Linked Rooms Count')
     ], []),
     wbEmpty(XMBP, 'MultiBound Primitive Marker', cpIgnore),
 
@@ -13806,8 +13803,10 @@ begin
       wbNexusModsUrl := 'https://www.nexusmods.com/skyrim/mods/62698';
   end;
 
-  if wbGameMode = gmEnderal then
-    wbNexusModsUrl := 'https://www.nexusmods.com/enderal/mods/23';
+  case wbGameMode of
+    gmEnderal: wbNexusModsUrl := 'https://www.nexusmods.com/enderal/mods/23';
+    gmEnderalSE: wbNexusModsUrl := 'https://www.nexusmods.com/enderalspecialedition/mods/78';
+  end;
 
   DefineTES5a;
   DefineTES5b;
