@@ -720,6 +720,7 @@ var
   Error       : string;
   i            : Integer;
   GroupRecord  : IwbGroupRecord;
+  aInt : Int64;
 begin
   if Assigned(DumpGroups) and (aElement.ElementType = etGroupRecord) then
     if Supports(aElement, IwbGroupRecord, GroupRecord) then
@@ -768,7 +769,31 @@ begin
       firstElement := True;
       Name := copy(Name,11,4);
     end;
-    Value := StringReplace(aElement.Value,'\','\\',[rfReplaceAll]);
+
+    Try
+      aInt := aElement.GetNativeValue();
+      Value := wbContainerHandler.ResolveFileHash(aInt);
+    except
+      on E: Exception do begin
+        Value := '';
+      end;
+    End;
+
+    if Value = '' then begin
+      Try
+        aInt := aElement.GetNativeValue();
+        Value := wbContainerHandler.ResolveFolderHash(aInt)
+      except
+        on E: Exception do begin
+          Value := '';
+        end;
+      End;
+
+    end;
+    if Value = '' then
+      Value := aElement.Value;
+
+    Value := StringReplace(Value,'\','\\',[rfReplaceAll]);
     Value := StringReplace(Value, #13#10, '', [rfReplaceAll]);
     Value := StringReplace(Value, '"', '\"', [rfReplaceAll]);
 
@@ -1580,7 +1605,7 @@ begin
       end;
 
       if wbToolMode in [tmExport] then begin
-        wbLoadBSAs := False;
+        wbLoadBSAs := True;
         wbReportMode := False;
         wbMoreInfoForUnknown:= False;
         DumpCheckReport := False;
@@ -1727,7 +1752,13 @@ begin
             wbFile(wbGameExeName, 0, wbGameMasterEsm, [fsIsHardcoded], b);
         end;
 
+      ReportProgress('Start building resources cache...');
+      wbContainerHandler.EnsureCache;
+      ReportProgress('...resources cache finished building');
+
       ReportProgress('Finished loading record. Starting Dump.');
+
+
       setFile('Header.json',False);
       if wbToolMode in [tmDump] then begin
         if FindCmdLineSwitch('check') and not wbReportMode then begin
