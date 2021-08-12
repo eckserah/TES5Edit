@@ -1,3 +1,21 @@
+# What's new in xEdit 4.1.4?
+
+## Bugfixes
+
+* #864 - subgraph data is incorrectly created/overriden
+* #888 - Plugins with no masters can't resolve references to hardcoded records
+* #897 - Assertion Failure when using Referenced By to jump to INFO
+* #904 - Any mod referred to in INOM and INOA in all present overrides will be added to a mod's master list on override
+* #908 - overriding a creature in fo3/fnv mode doesn't properly copy NIFZ and KFFZ sections
+
+## Minor changes
+
+* #856 - Ability to apply xEdit script to selected refs in Referenced By window
+
+# What's new in xEdit 4.1.x?
+
+There are a large number of changes between 4.0.x and 4.1.x which aren't currently documented here, but will be before the release of 4.2.x
+
 # What's new in xEdit 4.0.4?
 
 ## Bugfixes
@@ -9,16 +27,28 @@
 * #848 - Records with hardcoded FormIDs show as new records instead of overrides/injected
 * #853 - FNV - cleaning dead money master erases map geometry
 * #855 - After cleaning dlcnukaworld.esm, items in Nuka-Town market vanish
+* #860 - tooltip always disappears after a second
 * #863 - FO4: DefaultObject forms (DFOB) should override via EditorID
 * #871 - Updates for Static Collections [FO4] 
 * #875 - TES4Edit 4.0.3 not able to copy Magic Effect Records
+* #886 - Crash by confirming add of *no* master
+* #880 - Minor problem with double clicking during module selection
+* #894 - [Skyrim] Several RACE subrecords are not marked as required
 * #909 - xEdit should double apostrophes in generated LOOT masterlist entry names
+* #912 - TES4Edit crashes when trying to load Nehrim.esm
 * #914 - RNAM subrecord of INFO needs to be treated as case sensitive
 * #916 - DR displayed incorrectly in Armor and Armor Addons for F3/NV
 * #919 - For REFR, Linked Rooms Count needs to be updated whenever the Linked Rooms are changed
 * (reported on Discord) - .esl extensions don't always force loading as ESL correctly when the module is not ESL flagged
 * (reported on Discord) - [TES4] EDID and ESCE incorrectly report "Expected 4 bytes but found 0" when running "Check for Errors" on MGEF
+* (reported on Discord) - EnderalSE mode incorrectly performs exact instead of partial matching when loading .bsa for loaded modules
+* (reported on Discord) - Long running operations like filters and scripts can't be aborted
+* (reported on Discord) - 64 bit version does not handle extended FormID range in FO4 correctly
 * (found by developer) - Need to force InternalEdit for AfterSet handlers
+
+## Minor changes
+
+* #901 - "Unhide all..." option in column context menu
 
 ## Enderal Special Edition
 

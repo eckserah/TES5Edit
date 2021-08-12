@@ -8385,7 +8385,7 @@ begin
 
   wbCTDA :=
     wbRStructSK([0], 'Condition', [
-      wbStructSK(CTDA, [3, 5], '', [
+      wbStructSK(CTDA, [3, 5, 6], '', [
      {0}wbInteger('Type', itU8, wbCtdaTypeToStr, wbCtdaTypeToInt, cpNormal, False, nil, wbCtdaTypeAfterSet),
      {1}wbByteArray('Unused', 3, cpIgnore, False, wbNeverShow),
      {2}wbUnion('Comparison Value', wbCTDACompValueDecider, [
@@ -9932,8 +9932,8 @@ begin
     ]),
     wbString(SNAM, 'Subtype Name', 4),
     wbInteger(TIFC, 'Info Count', itU32, nil, cpBenign),
-    wbArray(INOM, 'INFO Order (Masters only)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave),
-    wbArray(INOA, 'INFO Order (All previous modules)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave)
+    wbArray(INOM, 'INFO Order (Masters only)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave).IncludeFlag(dfDontAssign),
+    wbArray(INOA, 'INFO Order (All previous modules)', wbFormIDCk('INFO', [INFO], False, cpBenign).IncludeFlag(dfUseLoadOrder), 0, nil, nil, cpBenign).IncludeFlag(dfInternalEditOnly).IncludeFlag(dfDontSave).IncludeFlag(dfDontAssign)
   ]);
 
   wbRecord(DOOR, 'Door',
@@ -13022,7 +13022,7 @@ begin
 
   wbRecord(INFO, 'Dialog response',
     wbFlags(wbRecordFlagsFlags, wbFlagsList([
-      {0x00000040}  6, 'Unknown 6',
+      {0x00000040}  6, 'Info Group',
       {0x00000080}  7, 'Exclude From Export',
       {0x00002000} 13, 'Actor Changed'
     ])), [
@@ -13039,7 +13039,7 @@ begin
         {0x0040} 'End Running Scene',
         {0x0080} 'ForceGreet Hello',
         {0x0100} 'Player Address',
-        {0x0200} 'Unknown 9',
+        {0x0200} 'Force Subtitle',
         {0x0400} 'Can Move While Greeting',
         {0x0800} 'No LIP File',
         {0x1000} 'Requires post-processing',
@@ -14765,10 +14765,10 @@ begin
     wbFormIDCk(SADD, 'Subgraph Additive Race', [RACE]),
     wbRArray('Subgraph Data',
       wbRStruct('Data', [
-        wbString(SGNM, 'Behaviour Graph'),
         wbRArray('Actor Keywords', wbFormIDCk(SAKD, 'Keyword', [KYWD])),
-        wbRArray('Target Keywords', wbFormIDCk(STKD, 'Keyword', [KYWD])),
+        wbString(SGNM, 'Behaviour Graph'),
         wbRArray('Animation Paths', wbString(SAPT, 'Path'), cpNormal, True),
+        wbRArray('Target Keywords', wbFormIDCk(STKD, 'Keyword', [KYWD])),
         // Values greater than $10000 sets a bool. Reading this "closes" the current record.
         wbStruct(SRAF, 'Flags', [
           wbInteger('Role', itU16, wbEnum([
@@ -14783,6 +14783,8 @@ begin
             '1st'
           ]))
         ], cpNormal, True)
+        .SetSummaryKeyOnValue([0, 1])
+        .IncludeFlag(dfTerminator)
       ], [], cpNormal, False, nil, True)
     ),
     wbFloat(PTOP, 'Idle Chatter Time Min'),

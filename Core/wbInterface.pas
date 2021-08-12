@@ -47,12 +47,12 @@ var
     Major   : 4;
     Minor   : 1;
     Release : 3;
-    Build   : 'g';
+    Build   : 'h';
     Title   : 'EXTREMELY EXPERIMENTAL';
   );
 
 const
-  wbWhatsNewVersion : Integer = 04010307;
+  wbWhatsNewVersion : Integer = 04010308;
   wbDeveloperMessageVersion : Integer = 04010304;
   wbDevCRC32App : Cardinal = $FFFFFFE8;
 
@@ -290,6 +290,7 @@ var
   wbSavePath           : string;
   wbMyGamesTheGamePath : string;
   wbTheGameIniFileName : string;
+  wbCustomIniFileName  : string;
 
   wbCreationClubContentFileName : string;
   wbCreationClubContent: array of string;
@@ -604,6 +605,7 @@ type
     dfTranslatable,
     dfAllowAnyMember,
     dfDontSave,
+    dfDontAssign,
     dfUseLoadOrder,
     dfSummaryMembersNoName,
     dfSummaryNoName,
@@ -614,7 +616,8 @@ type
     dfSummaryShowIgnore,
     dfUnionStaticResolve,
     dfHideText,
-    dfRemoveLastOnly
+    dfRemoveLastOnly,
+    dfTerminator
   );
 
   TwbDefFlags = set of TwbDefFlag;
@@ -735,6 +738,7 @@ type
     esLocalized,
     esNotLocalized,
     esOptionalAndMissing,
+    esEndingUpdate,
 
     //the following entries must match TwbElementErrorType:
     esReportedErrorReading,
@@ -2102,6 +2106,8 @@ type
     function SetAfterLoad(const aAfterLoad : TwbAfterLoadCallback): IwbRecordMemberDef{Self};
     function SetAfterSet(const aAfterSet : TwbAfterSetCallback): IwbRecordMemberDef{Self};
     function SetToStr(const aToStr : TwbToStrCallback): IwbRecordMemberDef{Self};
+
+    function SetRequired(const aRequired : Boolean = True): IwbRecordMemberDef{Self};
   end;
 
   TwbUsedMasters = array[Byte] of Boolean;
@@ -2183,6 +2189,7 @@ type
 
     function SetDefaultEditValue(const aValue: string): IwbSubRecordDef;
     function SetDefaultNativeValue(const aValue: Variant): IwbSubRecordDef;
+    function SetDefaultEditValues(const aValues: array of string): IwbRecordMemberDef;
 
     function ForValue(const aCallback: TwbSubRecordForValueCallback): {Self}IwbSubRecordDef;
 
@@ -2202,12 +2209,18 @@ type
     function GetElement: IwbRecordMemberDef;
     function GetSorted(const aContainer: IwbContainer): Boolean;
     function GetCountPath: string;
+    function GetCount: Integer;
 
     function SetCountPath(const aValue: string): IwbSubRecordArrayDef;
 
+    function SetDefaultEditValues(const aValues: array of string): IwbSubRecordArrayDef;
+    function GetDefaultEditValues: TArray<string>;
+
     property Element: IwbRecordMemberDef read GetElement;
+    property Count: Integer read GetCount; //fixed number of elementes if > 0
     property Sorted[const aContainer: IwbContainer]: Boolean read GetSorted;
     property CountPath: string read GetCountPath;
+    property DefaultEditValues: TArray<string> read GetDefaultEditValues;
   end;
 
   IwbSubRecordStructDef = interface(IwbRecordMemberDef)
@@ -2320,6 +2333,9 @@ type
     function SetSummaryPassthroughMaxLength(aLength: Integer): IwbArrayDef;
     function SetSummaryPassthroughMaxDepth(aDepth: Integer): IwbArrayDef;
     function SetSummaryDelimiter(const aDelimiter: string): IwbArrayDef;
+    
+    function SetDefaultEditValues(const aValues: array of string): IwbArrayDef;
+    function GetDefaultEditValues: TArray<string>;
 
     property Element: IwbValueDef
       read GetElement;
@@ -3450,6 +3466,18 @@ function wbRArray(const aName      : string;
                         aGetCP     : TwbGetConflictPriority = nil)
                                    : IwbSubRecordArrayDef; overload;
 
+function wbRArray(const aName      : string;
+                  const aElement   : IwbRecordMemberDef;
+                        aCount     : Integer; //fixed count
+                        aPriority  : TwbConflictPriority = cpNormal;
+                        aRequired  : Boolean = False;
+                        aAfterLoad : TwbAfterLoadCallback = nil;
+                        aAfterSet  : TwbAfterSetCallback = nil;
+                        aDontShow  : TwbDontShowCallback = nil;
+                        aGetCP     : TwbGetConflictPriority = nil)
+                                   : IwbSubRecordArrayDef; overload;
+
+
 function wbArrayS(const aSignature : TwbSignature;
                   const aName      : string;
                   const aElement   : IwbValueDef;
@@ -3541,6 +3569,19 @@ function wbRArrayS(const aName      : string;
                          aIsSorted  : TwbIsSortedCallback = nil;
                          aGetCP     : TwbGetConflictPriority = nil)
                                     : IwbSubRecordArrayDef; overload;
+
+function wbRArrayS(const aName      : string;
+                   const aElement   : IwbRecordMemberDef;
+                         aCount     : Integer;
+                         aPriority  : TwbConflictPriority = cpNormal;
+                         aRequired  : Boolean = False;
+                         aAfterLoad : TwbAfterLoadCallback = nil;
+                         aAfterSet  : TwbAfterSetCallback = nil;
+                         aDontShow  : TwbDontShowCallback = nil;
+                         aIsSorted  : TwbIsSortedCallback = nil;
+                         aGetCP     : TwbGetConflictPriority = nil)
+                                    : IwbSubRecordArrayDef; overload;
+
 
 {--- wbStruct - ordered list of members ----------------------------------------}
 function wbStructSK(const aSortKey             : array of Integer;
@@ -5282,6 +5323,7 @@ type
     function SetAfterLoad(const aAfterLoad : TwbAfterLoadCallback): IwbRecordMemberDef;
     function SetAfterSet(const aAfterSet : TwbAfterSetCallback): IwbRecordMemberDef;
     function SetToStr(const aToStr : TwbToStrCallback): IwbRecordMemberDef{Self};
+    function SetRequired(const aRequired : Boolean = True): IwbRecordMemberDef{Self};
 
     {---IwbSubRecordDef---}
     function GetValue: IwbValueDef;
@@ -5295,6 +5337,7 @@ type
 
     function SetDefaultEditValue(const aValue: string): IwbSubRecordDef;
     function SetDefaultNativeValue(const aValue: Variant): IwbSubRecordDef;
+    function SetDefaultEditValues(const aValues: array of string): IwbRecordMemberDef;
 
     function ForValue(const aCallback: TwbSubRecordForValueCallback): {Self}IwbSubRecordDef;
 
@@ -5315,19 +5358,24 @@ type
     function SetAfterLoad(const aAfterLoad : TwbAfterLoadCallback): IwbRecordMemberDef{Self};
     function SetAfterSet(const aAfterSet : TwbAfterSetCallback): IwbRecordMemberDef{Self};
     function SetToStr(const aToStr : TwbToStrCallback): IwbRecordMemberDef{Self};
+    function SetRequired(const aRequired : Boolean = True): IwbRecordMemberDef{Self};
   end;
 
   TwbSubRecordArrayDef = class(TwbRecordMemberDef, IwbSubRecordArrayDef)
   private
-    sraElement  : IwbRecordMemberDef;
-    sraSorted   : Boolean;
-    sraIsSorted : TwbIsSortedCallback;
-    sraCountPath: string;
+    sraElement           : IwbRecordMemberDef;
+    sraCount             : Integer;
+    sraSorted            : Boolean;
+    sraIsSorted          : TwbIsSortedCallback;
+    sraDefaultEditValues : TArray<string>;
+    sraCountPath         : string;
   public
     constructor Clone(const aSource: TwbDef); override;
-    constructor Create(aPriority  : TwbConflictPriority; aRequired: Boolean;
+    constructor Create(aPriority  : TwbConflictPriority;
+                       aRequired: Boolean;
                  const aName      : string;
                  const aElement   : IwbRecordMemberDef;
+                       aCount     : Integer;
                        aSorted    : Boolean;
                        aAfterLoad : TwbAfterLoadCallback;
                        aAfterSet  : TwbAfterSetCallback;
@@ -5363,6 +5411,10 @@ type
     function GetElement: IwbRecordMemberDef;
     function GetSorted(const aContainer: IwbContainer): Boolean;
     function GetCountPath: string;
+    function GetCount: Integer;
+
+    function SetDefaultEditValues(const aValues: array of string): IwbSubRecordArrayDef;
+    function GetDefaultEditValues: TArray<string>;
 
     function SetCountPath(const aValue: string): IwbSubRecordArrayDef;
   end;
@@ -6057,13 +6109,14 @@ type
 
   TwbArrayDef = class(TwbValueDef, IwbArrayDef)
   private
-    arCount         : Integer;
-    arCountCallback : TwbCountCallback;
-    arElement       : IwbValueDef;
-    arLabels        : array of string;
-    arSorted        : Boolean;
-    arCanAddTo      : Boolean;
-    arTerminated    : Boolean;
+    arCount             : Integer;
+    arCountCallback     : TwbCountCallback;
+    arElement           : IwbValueDef;
+    arLabels            : array of string;
+    arSorted            : Boolean;
+    arCanAddTo          : Boolean;
+    arTerminated        : Boolean;
+    arDefaultEditValues : TArray<string>;
 
     arSummaryDelimiter            : string;
     arSummaryPassthroughMaxCount  : Integer;
@@ -6134,6 +6187,9 @@ type
     function SetSummaryPassthroughMaxLength(aLength: Integer): IwbArrayDef;
     function SetSummaryDelimiter(const aDelimiter: string): IwbArrayDef;
     function SetSummaryPassthroughMaxDepth(aCount: Integer): IwbArrayDef;
+    
+    function SetDefaultEditValues(const aValues: array of string): IwbArrayDef;
+    function GetDefaultEditValues: TArray<string>;
   end;
 
   TwbStructDef = class(TwbValueDef, IwbStructDef)
@@ -7641,8 +7697,23 @@ function wbRArray(const aName      : string;
                         aGetCP     : TwbGetConflictPriority = nil)
                                    : IwbSubRecordArrayDef; overload;
 begin
-  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, False, aAfterLoad, aAfterSet, aDontShow, nil, aGetCP);
+  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, 0, False, aAfterLoad, aAfterSet, aDontShow, nil, aGetCP);
 end;
+
+function wbRArray(const aName      : string;
+                  const aElement   : IwbRecordMemberDef;
+                        aCount     : Integer;
+                        aPriority  : TwbConflictPriority = cpNormal;
+                        aRequired  : Boolean = False;
+                        aAfterLoad : TwbAfterLoadCallback = nil;
+                        aAfterSet  : TwbAfterSetCallback = nil;
+                        aDontShow  : TwbDontShowCallback = nil;
+                        aGetCP     : TwbGetConflictPriority = nil)
+                                   : IwbSubRecordArrayDef; overload;
+begin
+  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, aCount, False, aAfterLoad, aAfterSet, aDontShow, nil, aGetCP);
+end;
+
 
 function wbArray(const aSignature : TwbSignature;
                  const aName      : string;
@@ -7869,7 +7940,22 @@ function wbRArrayS(const aName      : string;
                          aGetCP     : TwbGetConflictPriority = nil)
                                     : IwbSubRecordArrayDef; overload;
 begin
-  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, True, aAfterLoad, aAfterSet, aDontShow, aIsSorted, aGetCP);
+  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, 0, True, aAfterLoad, aAfterSet, aDontShow, aIsSorted, aGetCP);
+end;
+
+function wbRArrayS(const aName      : string;
+                   const aElement   : IwbRecordMemberDef;
+                         aCount     : Integer;
+                         aPriority  : TwbConflictPriority = cpNormal;
+                         aRequired  : Boolean = False;
+                         aAfterLoad : TwbAfterLoadCallback = nil;
+                         aAfterSet  : TwbAfterSetCallback = nil;
+                         aDontShow  : TwbDontShowCallback = nil;
+                         aIsSorted  : TwbIsSortedCallback = nil;
+                         aGetCP     : TwbGetConflictPriority = nil)
+                                    : IwbSubRecordArrayDef; overload;
+begin
+  Result := TwbSubRecordArrayDef.Create(aPriority, aRequired, aName, aElement, aCount, True, aAfterLoad, aAfterSet, aDontShow, aIsSorted, aGetCP);
 end;
 
 function wbArrayS(const aSignature : TwbSignature;
@@ -9739,6 +9825,9 @@ function TwbSubRecordDef.CanAssign(const aElement: IwbElement; aIndex: Integer; 
 var
   SubRecordDef : IwbSubRecordDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if Supports(aDef, IwbSubRecordDef, SubRecordDef) then
     Result := Equals(aDef) or Assigned(srValue) and srValue.CanAssign(aElement, aIndex, SubRecordDef.Value)
   else
@@ -9878,6 +9967,15 @@ begin
   Result := Self;
 end;
 
+function TwbSubRecordDef.SetDefaultEditValues(const aValues: array of string): IwbRecordMemberDef;
+var
+  a: IwbArrayDef;
+begin
+  if Supports(srValue, IwbArrayDef, a) then
+    a.SetDefaultEditValues(aValues);
+  Result := Self;
+end;
+
 function TwbSubRecordDef.SetDefaultNativeValue(const aValue: Variant): IwbSubRecordDef;
 begin
   if Assigned(srValue) then
@@ -9909,6 +10007,12 @@ begin
   (srValue as IwbStructDef).SetSummaryMemberPrefixSuffix(aIndex, aPrefix, aSuffix);
 end;
 
+function TwbSubRecordDef.SetRequired(const aRequired: Boolean): IwbRecordMemberDef;
+begin
+  Result := Self;
+  defRequired := aRequired;
+end;
+
 function TwbSubRecordDef.SetToStr(const aToStr: TwbToStrCallback): IwbRecordMemberDef;
 begin
   Result := Self;
@@ -9936,6 +10040,7 @@ procedure TwbSubRecordArrayDef.AfterClone(const aSource: TwbDef);
 begin
   inherited AfterClone(aSource);
   with aSource as TwbSubRecordArrayDef do begin
+    Self.sraDefaultEditValues := sraDefaultEditValues;
     Self.sraCountPath := sraCountPath;
   end;
 end;
@@ -9956,6 +10061,9 @@ function TwbSubRecordArrayDef.CanAssign(const aElement: IwbElement; aIndex: Inte
 var
   SubRecordArrayDef : IwbSubRecordArrayDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if aIndex = Low(Integer) then
     Result := Supports(aDef, IwbSubRecordArrayDef, SubRecordArrayDef) and
       GetElement.CanAssign(aElement, aIndex, SubRecordArrayDef.Element)
@@ -9980,13 +10088,14 @@ end;
 constructor TwbSubRecordArrayDef.Clone(const aSource: TwbDef);
 begin
   with aSource as TwbSubRecordArrayDef do
-    Self.Create(defPriority, defRequired, ndName, sraElement, sraSorted,
+    Self.Create(defPriority, defRequired, ndName, sraElement, sraCount, sraSorted,
       ndAfterLoad, ndAfterSet, ndDontShow, sraIsSorted, defGetCP).AfterClone(aSource);
 end;
 
 constructor TwbSubRecordArrayDef.Create(aPriority  : TwbConflictPriority; aRequired: Boolean;
                                   const aName      : string;
                                   const aElement   : IwbRecordMemberDef;
+                                        aCount     : Integer;
                                         aSorted    : Boolean;
                                         aAfterLoad : TwbAfterLoadCallback;
                                         aAfterSet  : TwbAfterSetCallback;
@@ -9998,6 +10107,7 @@ begin
     sraElement := (aElement as IwbDefInternal).SetParent(Self, False) as IwbRecordMemberDef;
   sraSorted := aSorted;
   sraIsSorted := aIsSorted;
+  sraCount := aCount;
   inherited Create(aPriority, aRequired, aName, aAfterLoad, aAfterSet, aDontShow, aGetCP, False);
 end;
 
@@ -10006,9 +10116,19 @@ begin
   Result := sraElement;
 end;
 
+function TwbSubRecordArrayDef.GetCount: Integer;
+begin
+  Result := sraCount;
+end;
+
 function TwbSubRecordArrayDef.GetCountPath: string;
 begin
   Result := sraCountPath;
+end;
+
+function TwbSubRecordArrayDef.GetDefaultEditValues: TArray<string>;
+begin
+  Result := Copy(sraDefaultEditValues);
 end;
 
 function TwbSubRecordArrayDef.GetDefaultSignature: TwbSignature;
@@ -10083,6 +10203,16 @@ begin
     end;
   end;
 end;
+  
+function TwbSubRecordArrayDef.SetDefaultEditValues(const aValues: array of string): IwbSubRecordArrayDef;
+var
+  i: Integer;
+begin
+  Result := Self;
+  SetLength(sraDefaultEditValues, Length(aValues));
+  for i := Low(aValues) to High(aValues) do
+    sraDefaultEditValues[i] := aValues[i];
+end;
 
 function TwbSubRecordArrayDef.GetDefType: TwbDefType;
 begin
@@ -10149,6 +10279,9 @@ var
   RecordDef          : IwbRecordDef;
   i                  : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if Supports(aDef, IwbSubRecordStructDef, SubRecordStructDef) then begin
     Result := Equals(aDef);
     if not Result and
@@ -10402,6 +10535,9 @@ var
   RecordDef         : IwbRecordDef;
   i                 : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   for i := Low(sruMembers) to High(sruMembers) do begin
     Result := sruMembers[i].CanAssign(aElement, aIndex, aDef);
     if Result = True then
@@ -10758,6 +10894,9 @@ function TwbIntegerDef.CanAssign(const aElement: IwbElement; aIndex: Integer; co
 var
   IntegerDef : IwbIntegerDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbIntegerDef, IntegerDef);
   if Result then begin
     if Assigned(inFormater) then
@@ -11511,6 +11650,7 @@ begin
     Self.arSummaryPassthroughMaxCount := arSummaryPassthroughMaxCount;
     Self.arSummaryPassthroughMaxLength := arSummaryPassthroughMaxLength;
     Self.arSummaryPassthroughMaxDepth := arSummaryPassthroughMaxDepth;
+    Self.arDefaultEditValues := arDefaultEditValues;
   end;
 end;
 
@@ -11518,6 +11658,9 @@ function TwbArrayDef.CanAssign(const aElement: IwbElement; aIndex: Integer; cons
 var
   ArrayDef: IwbArrayDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := (aIndex = Low(Integer)) and
     Supports(aDef, IwbArrayDef, ArrayDef) and
     ( ( arCount <= 0 ) or (arCount = ArrayDef.ElementCount) ) and
@@ -11841,6 +11984,11 @@ begin
   Inc(Result, Ord(arTerminated));
 end;
 
+function TwbArrayDef.GetDefaultEditValues: TArray<string>;
+begin
+  Result := Copy(arDefaultEditValues);
+end;
+
 function TwbArrayDef.GetDefaultSize(aBasePtr, aEndPtr: Pointer; const aElement: IwbElement): Integer;
 begin
   if ((arCount = 0) and not Assigned(arCountCallback)) then
@@ -11874,6 +12022,16 @@ begin
   end;
 
   defReported := True;
+end;
+
+function TwbArrayDef.SetDefaultEditValues(const aValues: array of string): IwbArrayDef;
+var
+  i: Integer;
+begin
+  Result := Self;
+  SetLength(arDefaultEditValues, Length(aValues));
+  for i := Low(aValues) to High(aValues) do
+    arDefaultEditValues[i] := aValues[i];
 end;
 
 procedure TwbArrayDef.SetPrefixCount(aBasePtr: Pointer; aValue: Cardinal);
@@ -12022,6 +12180,9 @@ var
   StructDef : IwbStructDef;
   i         : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := (aIndex = Low(Integer)) and
     Supports(aDef, IwbStructDef, StructDef) and
     ( GetMemberCount = StructDef.MemberCount);
@@ -12486,6 +12647,9 @@ var
   FlagDef  : IwbFlagDef;
   i        : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if Supports(aDef, IwbFlagsDef, FlagsDef) then begin
     Result := FlagsDef.FlagCount = GetFlagCount;
     if Result and not GetRoot.Equals(FlagsDef.Root) then
@@ -12878,6 +13042,9 @@ var
   EnumDef: IwbEnumDef;
   i: Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbEnumDef, EnumDef) and (EnumDef.NameCount = GetNameCount);
   if Result and not Equals(EnumDef) then
     for i := 0 to Pred(GetNameCount) do
@@ -13447,6 +13614,9 @@ function TwbStringDef.CanAssign(const aElement: IwbElement; aIndex: Integer; con
 var
   StringDef: IwbStringDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbStringDef, StringDef) and
     ((sdSize = 0) or (StringDef.StringSize = 0) or (sdSize <= StringDef.StringSize));
 end;
@@ -13758,6 +13928,9 @@ function TwbFloatDef.CanAssign(const aElement: IwbElement; aIndex: Integer; cons
 var
   FloatDef: IwbFloatDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbFloatDef, FloatDef);
 end;
 
@@ -14159,6 +14332,9 @@ end;
 
 function TwbChar4.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef): Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbChar4);
 end;
 
@@ -14257,6 +14433,9 @@ end;
 
 function TwbStr4.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef): Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbStr4);
 end;
 
@@ -14360,6 +14539,9 @@ end;
 
 function TwbFormIDDefFormater.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef): Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbFormID);
 end;
 
@@ -15306,6 +15488,9 @@ function TwbByteArrayDef.CanAssign(const aElement: IwbElement; aIndex: Integer; 
 var
   ByteArrayDef: IwbByteArrayDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbByteArrayDef, ByteArrayDef);
   if Result and (badSize > 0) then begin
     Result := ByteArrayDef.IsVariableSize or (ByteArrayDef.DefaultSize[nil, nil, nil] <= Integer(badSize));
@@ -15909,6 +16094,9 @@ end;
 
 function TwbDivDef.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef): Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := True;
 end;
 
@@ -15964,6 +16152,9 @@ end;
 
 function TwbMulDef.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef): Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := True;
 end;
 
@@ -16019,6 +16210,9 @@ function TwbCallbackDef.CanAssign(const aElement: IwbElement; aIndex: Integer; c
 var
   CallbackDef: IwbCallbackDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := Supports(aDef, IwbCallbackDef, CallbackDef) and
     (@CallbackDef.Callback = @cdToStr);
 end;
@@ -16398,6 +16592,9 @@ var
   i             : Integer;
   Dummy         : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if Supports(aDef, IwbFormIDChecked, FormIDChecked) then begin
     Result := False;
     for i := 0 to Pred(FormIDChecked.SignatureCount) do
@@ -16780,6 +16977,9 @@ var
   UnionDef : IwbUnionDef;
   i        : Integer;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   if Supports(aDef, IwbUnionDef, UnionDef) then begin
     Result := Equals(aDef);
     if not Result then
@@ -16808,6 +17008,9 @@ function TwbResolvableDef.CanAssign(const aElement: IwbElement; aIndex: Integer;
 var
   ValueDef: IwbValueDef;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   ValueDef := ResolveDef(nil, nil, aElement);
   if Assigned(ValueDef) then
     Result := ValueDef.CanAssign(aElement, aIndex, aDef)
@@ -17442,6 +17645,9 @@ end;
 
 function TwbLenStringDef.CanAssign(const aElement: IwbElement; aIndex: Integer; const aDef: IwbDef) : Boolean;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   Result := aDef.DefType in [dtString, dtLString, dtLenString];
 end;
 
@@ -18525,6 +18731,9 @@ function TwbIntegerDefFormaterUnion.CanAssign(const aElement : IwbElement;
 var
   IntegerDef: IwbIntegerDefFormater;
 begin
+  if dfDontAssign in defFlags then
+    Exit(False);
+
   IntegerDef := Decide(aElement);
   if Assigned(IntegerDef) then
     Result := IntegerDef.CanAssign(aElement, aIndex, aDef)
@@ -19441,6 +19650,12 @@ function TwbRecordMemberDef.SetAfterSet(const aAfterSet: TwbAfterSetCallback): I
 begin
   Result := Self;
   ndAfterSet := aAfterSet;
+end;
+
+function TwbRecordMemberDef.SetRequired(const aRequired: Boolean): IwbRecordMemberDef;
+begin
+  Result := Self;
+  defRequired := aRequired;
 end;
 
 function TwbRecordMemberDef.SetToStr(const aToStr: TwbToStrCallback): IwbRecordMemberDef;

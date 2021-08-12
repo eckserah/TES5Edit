@@ -1,7 +1,7 @@
 {******************************************************************************
 
-  This Source Code Form is subject to the terms of the Mozilla Public License, 
-  v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain 
+  This Source Code Form is subject to the terms of the Mozilla Public License,
+  v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain
   one at https://mozilla.org/MPL/2.0/.
 
 *******************************************************************************}
@@ -181,6 +181,7 @@ type
     tmrMessages: TTimer;
     vstView: TVirtualEditTree;
     stbMain: TStatusBar;
+    pnlClient: TPanel;
     pnlRight: TPanel;
     pmuNav: TPopupMenu;
     mniNavFilterRemove: TMenuItem;
@@ -234,6 +235,7 @@ type
     mniNavCopyAsNewRecord: TMenuItem;
     mniViewHeaderRemove: TMenuItem;
     mniViewHeaderCopyAsWrapper: TMenuItem;
+    mniViewHeaderUnhideAll: TMenuItem;
     mniNavCopyAsWrapper: TMenuItem;
     mniViewCopyToSelectedRecords: TMenuItem;
     mniViewCopyMultipleToSelectedRecords: TMenuItem;
@@ -446,6 +448,8 @@ type
     mniCopyPathNameToClipboard: TMenuItem;
     N32: TMenuItem;
     mniCreateNewFile: TMenuItem;
+    pnlCancel: TPanel;
+    btnCancel: TButton;
 
     {--- Form ---}
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -538,7 +542,6 @@ type
     procedure vstViewFocusChanging(Sender: TBaseVirtualTree; OldNode, NewNode: PVirtualNode; OldColumn, NewColumn: TColumnIndex; var Allowed: Boolean);
     procedure vstViewFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure vstViewGetEditText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var CellText: string);
-    procedure vstViewGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle; var HintText: string);
     procedure vstViewGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
     procedure vstViewHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
     procedure vstViewHeaderDropped(Sender: TVTHeader; SourceColumn, TargetColumn: TColumnIndex; var Handled: Boolean);
@@ -574,9 +577,11 @@ type
 
     {--- pmuViewHeaderPopup ---}
     procedure pmuViewHeaderPopup(Sender: TObject);
+    procedure mniViewHeaderJumpToClick(Sender: TObject);
     procedure mniViewHeaderCopyIntoClick(Sender: TObject);
-    procedure mniViewHeaderHiddenClick(Sender: TObject);
     procedure mniViewHeaderRemoveClick(Sender: TObject);
+    procedure mniViewHeaderHiddenClick(Sender: TObject);
+    procedure mniViewHeaderUnhideAllClick(Sender: TObject);
 
     {--- pmuRefByPopup ---}
     procedure pmuRefByPopup(Sender: TObject);
@@ -598,7 +603,6 @@ type
     procedure vstSpreadSheetEditing(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var Allowed: Boolean);
     procedure vstSpreadSheetFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure vstSpreadSheetGetEditText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var CellText: string);
-    procedure vstSpreadSheetGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle; var HintText: string);
     procedure vstSpreadSheetGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
     procedure vstSpreadSheetIncrementalSearch(Sender: TBaseVirtualTree; Node: PVirtualNode; const SearchText: string; var Result: Integer);
     procedure vstSpreadSheetNewText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; NewText: string);
@@ -650,7 +654,6 @@ type
     procedure mniRefByMarkModifiedClick(Sender: TObject);
     procedure mniViewNextMemberClick(Sender: TObject);
     procedure mniViewPreviousMemberClick(Sender: TObject);
-    procedure mniViewHeaderJumpToClick(Sender: TObject);
     procedure acScriptExecute(Sender: TObject);
     procedure mniNavFilterConflictsClick(Sender: TObject);
     procedure mniModGroupsAbleClick(Sender: TObject);
@@ -722,6 +725,9 @@ type
     procedure mniCopyPathNameToClipboardClick(Sender: TObject);
     procedure mniCreateNewFileClick(Sender: TObject);
 
+    procedure btnCancelClick(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+
   protected
     function IsViewNodeFiltered(aNode: PVirtualNode): Boolean;
     procedure ApplyViewFilter;
@@ -776,6 +782,8 @@ type
     procedure BuildAllRef;
     procedure ResetAllTags;
 
+    procedure UpdatePnlCancelPosition;
+    procedure UpdatePnlCancelVisible;
   public
     procedure ConflictLevelForMainRecord(const aMainRecord: IwbMainRecord; out aConflictAll: TConflictAll; out aConflictThis: TConflictThis);
     procedure ConflictLevelForContainer(const aContainer: IwbDataContainer; out aConflictAll: TConflictAll; out aConflictThis: TConflictThis);
@@ -1859,8 +1867,9 @@ begin
       sl.CustomSort(CompareLoadOrder);
 
       if Result then begin
-        WasEnabled := Enabled;
-        Enabled := False;
+        WasEnabled := pnlClient.Enabled;
+        pnlClient.Enabled := False;
+        UpdatePnlCancelVisible;
         try
           if WasEnabled then
             wbStartTime := Now;
@@ -1880,7 +1889,8 @@ begin
           wbCurrentAction := PrevAction;
           if WasEnabled then
             Caption := Application.Title;
-          Enabled := WasEnabled;
+          pnlClient.Enabled := WasEnabled;
+          UpdatePnlCancelVisible;
         end;
       end;
     end else
@@ -1983,7 +1993,8 @@ begin
   wbStartTime := Now;
   pgMain.ActivePage := tbsMessages;
 
-  Enabled := False;
+  pnlClient.Enabled := False;
+  UpdatePnlCancelVisible;
   try
     for i := Low(Files) to High(Files) do begin
       _File := Files[i];
@@ -1999,7 +2010,8 @@ begin
   finally
     wbCurrentAction := '';
     Caption := Application.Title;
-    Enabled := True;
+    pnlClient.Enabled := True;
+    UpdatePnlCancelVisible;
   end;
 end;
 
@@ -4846,6 +4858,10 @@ begin
     Exit;
   end;
 
+  if FileExists(wbCustomIniFileName) then begin
+    AddMessage('Using custom ini: ' + wbCustomIniFileName);
+  end;
+
   if wbSavePath <> '' then begin
     AddMessage('Using save path: ' + wbSavePath);
     if not DirectoryExists(wbSavePath) then begin
@@ -6019,14 +6035,15 @@ begin
   if LoaderStarted and not wbLoaderDone then begin
     wbForceTerminate := True;
     Caption := 'Waiting for Background Loader to terminate...';
-    Enabled := False;
+    pnlClient.Enabled := False;
     try
       while not wbLoaderDone do begin
         DoProcessMessages;
         Sleep(100);
       end;
     finally
-      Enabled := True;
+      pnlClient.Enabled := True;
+      UpdatePnlCancelVisible;
     end;
   end;
 
@@ -6491,6 +6508,12 @@ begin
     if Key = VK_SHIFT then
       vstNav.Header.Options := vstNav.Header.Options - [hoAutoSpring];
   end;
+end;
+
+procedure TfrmMain.FormResize(Sender: TObject);
+begin
+  if pnlCancel.Visible then
+    UpdatePnlCancelPosition;
 end;
 
 procedure TfrmMain.FormShow(Sender: TObject);
@@ -9862,13 +9885,15 @@ begin
         Exit;
 
       wbStartTime := Now;
-      Self.Enabled := False;
+      pnlClient.Enabled := False;
+      UpdatePnlCancelVisible;
       try
         for i := 0 to Pred(CheckListBox1.Count) do
           if CheckListBox1.Checked[i] then
             wbGenerateLODTES4(IwbMainRecord(Pointer(CheckListBox1.Items.Objects[i])), Settings)
       finally
-        Self.Enabled := True;
+        pnlClient.Enabled := True;
+        UpdatePnlCancelVisible;
         Self.Caption := Application.Title
       end;
     finally
@@ -9997,7 +10022,8 @@ begin
 
       pgMain.ActivePage := tbsMessages;
       wbStartTime := Now;
-      Self.Enabled := False;
+      pnlClient.Enabled := False;
+      UpdatePnlCancelVisible;
       try
         for i := 0 to Pred(clbWorldspace.Count) do
           if clbWorldspace.Checked[i] then
@@ -10006,7 +10032,8 @@ begin
             else if wbIsFallout4 then
               wbGenerateLODFO4(IwbMainRecord(Pointer(clbWorldspace.Items.Objects[i])), Files, Settings);
       finally
-        Self.Enabled := True;
+        pnlClient.Enabled := True;
+        UpdatePnlCancelVisible;
         Self.Caption := Application.Title
       end;
     finally
@@ -10212,7 +10239,8 @@ begin
     StartTick := GetTickCount64;
     wbStartTime := Now;
 
-    Enabled := False;
+    pnlClient.Enabled := False;
+    UpdatePnlCancelVisible;
 
     ChangeCount := 0;
     Count := 0;
@@ -10260,7 +10288,8 @@ begin
       end;
 
     finally
-      Enabled := True;
+      pnlClient.Enabled := True;
+      UpdatePnlCancelVisible;
     end;
 
     AddMessage('[Setting VWD for all REFR with VWD Mesh] ' + ' Processed Records: ' + IntToStr(Count) +
@@ -10346,7 +10375,8 @@ begin
           end;
         end;
       finally
-        Enabled := True;
+        pnlClient.Enabled := True;
+        UpdatePnlCancelVisible;
       end;
 
       SetLength(Elements, j);
@@ -10773,7 +10803,7 @@ begin
   end
   else if (aInfo.ITM = 0) and (aInfo.UDR = 0) and (aInfo.NAV = 0) then begin
     if aFileChanged then
-      Result := CRLF + Format(StringOfChar(' ', 2) + '- name: ''%s''', [aInfo.Plugin]) + CRLF;
+      Result := CRLF + Format(StringOfChar(' ', 2) + '- name: ''%s''', [aInfo.Plugin.Replace('''', '''''', [rfReplaceAll])]) + CRLF;
     Result := Result + StringOfChar(' ', 4) + 'clean:';
     Result := Result + CRLF + Format(StringOfChar(' ', 6) + '- crc: 0x%s', [IntToHex(aInfo.CRC32, 8)]);
     Result := Result + CRLF + Format(StringOfChar(' ', 8) + 'util: ''%sEdit v%s''', [wbAppName, VersionString.ToString]);
@@ -10798,6 +10828,11 @@ begin
       wbAppName
     ]);
   end;
+end;
+
+procedure TfrmMain.btnCancelClick(Sender: TObject);
+begin
+  wbForceTerminate := True;
 end;
 
 procedure TfrmMain.mniNavUndeleteAndDisableReferencesClick(Sender: TObject);
@@ -10896,7 +10931,8 @@ begin
     StartTick := GetTickCount64;
     wbStartTime := Now;
 
-    Enabled := False;
+    pnlClient.Enabled := False;
+    UpdatePnlCancelVisible;
 
     Plugin := '';
     PluginCRC32 := 0;
@@ -10993,7 +11029,8 @@ begin
       end;
 
     finally
-      Enabled := True;
+      pnlClient.Enabled := True;
+      UpdatePnlCancelVisible;
     end;
 
     PostAddMessage('['+Operation+'ing and Disabling References done] ' + ' Processed Records: ' + IntToStr(Count) +
@@ -11189,7 +11226,8 @@ begin
     StartTick := GetTickCount64;
     wbStartTime := Now;
 
-    Enabled := False;
+    pnlClient.Enabled := False;
+    UpdatePnlCancelVisible;
 
     RemovedCount := 0;
     Count := 0;
@@ -11258,7 +11296,8 @@ begin
       end;
 
     finally
-      Enabled := True;
+      pnlClient.Enabled := True;
+      UpdatePnlCancelVisible;
     end;
 
     PostAddMessage('['+Operation+'ing "Identical to Master" records done] ' + ' Processed Records: ' + IntToStr(Count) +
@@ -11348,6 +11387,26 @@ begin
   vstSpreadsheet.Clear;
   vstSpreadsheet.NodeDataSize := 0;
   tbsSpreadsheetShow(vstSpreadsheet.Parent);
+end;
+
+procedure TfrmMain.mniViewHeaderUnhideAllClick(Sender: TObject);
+var
+  i, j       : Integer;
+  Element    : IwbElement;
+  MainRecord : IwbMainRecord;
+begin
+  for i := Low(ActiveRecords) to High(ActiveRecords) do begin
+    Element := ActiveRecords[i].Element;
+    if Supports(Element, IwbMainRecord, MainRecord) then begin
+      MainRecord := MainRecord.MasterOrSelf;
+      MainRecord.Show;
+      for j := 0 to Pred(MainRecord.OverrideCount) do
+        MainRecord.Overrides[j].Show;
+      Break;
+    end;
+  end;
+  PostResetActiveTree;
+  InvalidateElementsTreeView(NoNodes);
 end;
 
 procedure TfrmMain.mniViewRemoveClick(Sender: TObject);
@@ -11555,7 +11614,7 @@ end;
 procedure TfrmMain.mniBtnShrinkButtonsClick(Sender: TObject);
 begin
   wbShrinkButtons := not wbShrinkButtons;
-  
+
   if (Settings <> nil) then begin
     Settings.WriteBool('Options', 'ShrinkButtons', wbShrinkButtons);
     Settings.UpdateFile;
@@ -11775,7 +11834,8 @@ begin
 
       StartTick := GetTickCount64;
       wbStartTime := Now;
-      Enabled := false;
+      pnlClient.Enabled := false;
+      UpdatePnlCancelVisible;
 
       if fTranslate then begin
         PostAddMessage('[Processing] Building translation index...');
@@ -11850,7 +11910,8 @@ begin
       end;
 
       wbLocalizationHandler.NoTranslate := false;
-      Enabled := true;
+      pnlClient.Enabled := true;
+      UpdatePnlCancelVisible;
       PostAddMessage('[Processing done] ' +
         ' Localizable Strings: ' + IntToStr(Length(lstrings)) +
         ' Translated: ' + IntToStr(Translated) +
@@ -14007,7 +14068,7 @@ begin
   wbLocalStartTime := Now;
   if wbShowStartTime < 1 then
     wbStartTime := wbLocalStartTime;
-  WasEnabled := Enabled;
+  WasEnabled := pnlClient.Enabled;
   HadTick := wbCurrentTick > 0;
   HadLastMsg := wbLastMessageAt > 0;
 
@@ -14020,7 +14081,8 @@ begin
   Inc(wbShowCaption);
   PrevAction := wbCurrentAction;
   PrevProgress := wbCurrentProgress;
-  Enabled := False;
+  pnlClient.Enabled := False;
+  UpdatePnlCancelVisible;
   try
     pgMain.ActivePage := tbsMessages;
     if aDesc <> '' then
@@ -14055,7 +14117,8 @@ begin
       wbProgress(s);
     end;
   finally
-    Enabled := WasEnabled;
+    pnlClient.Enabled := WasEnabled;
+    UpdatePnlCancelVisible;
     wbCurrentAction := PrevAction;
     wbCurrentProgress := PrevProgress;
     Dec(wbShowStartTime);
@@ -14497,8 +14560,10 @@ end;
 
 procedure TfrmMain.pmuViewHeaderPopup(Sender: TObject);
 var
-  Column                      : TColumnIndex;
-  MainRecord                  : IwbMainRecord;
+  Column     : TColumnIndex;
+  MainRecord : IwbMainRecord;
+  AnyHidden  : Boolean;
+  i          : Integer;
 begin
   mniViewCreateModGroup.Visible := Length(ActiveRecords) > 2;
 
@@ -14545,10 +14610,19 @@ begin
   mniViewHeaderJumpTo.Visible := True;
   mniViewHeaderHidden.Visible := True;
   mniViewHeaderHidden.Checked := esHidden in MainRecord.ElementStates;
+
+  MainRecord := MainRecord.MasterOrSelf;
+  AnyHidden := MainRecord.IsHidden;
+  if not AnyHidden then
+    for i := 0 to Pred(MainRecord.OverrideCount) do
+      if MainRecord.Overrides[i].IsHidden then begin
+        AnyHidden := True;
+        Break;
+      end;
+  mniViewHeaderUnhideAll.Visible := AnyHidden;
+
   if not ActiveRecords[Column].Element._File.IsEditable then
     Exit;
-//  if DebugHook = 0 then //reserve Delete for debugging until we know why it can go "crazy"
-//    Exit;
   mniViewHeaderRemove.Visible := True;
 end;
 
@@ -14880,7 +14954,8 @@ var
 begin
   wbStartTime := Now;
 
-  Enabled := False;
+  pnlClient.Enabled := False;
+  UpdatePnlCancelVisible;
   try
     for i := Low(Files) to High(Files) do begin
       _File := Files[i];
@@ -14891,7 +14966,8 @@ begin
   finally
     wbCurrentAction := '';
     Caption := Application.Title;
-    Enabled := True;
+    pnlClient.Enabled := True;
+    UpdatePnlCancelVisible;
   end;
 end;
 
@@ -14902,7 +14978,8 @@ var
 begin
   wbStartTime := Now;
 
-  Enabled := False;
+  pnlClient.Enabled := False;
+  UpdatePnlCancelVisible;
   try
     for i := Low(Files) to High(Files) do begin
       _File := Files[i];
@@ -14913,7 +14990,8 @@ begin
   finally
     wbCurrentAction := '';
     Caption := Application.Title;
-    Enabled := True;
+    pnlClient.Enabled := True;
+    UpdatePnlCancelVisible;
   end;
 end;
 
@@ -16470,6 +16548,29 @@ begin
   end;
 end;
 
+procedure TfrmMain.UpdatePnlCancelPosition;
+begin
+  pnlCancel.SetBounds(
+    (ClientWidth - pnlCancel.Width) div 2,
+    (ClientHeight - pnlCancel.Height) div 2,
+    pnlCancel.Width,
+    pnlCancel.Height
+  );
+end;
+
+procedure TfrmMain.UpdatePnlCancelVisible;
+var
+  WasVisible : Boolean;
+begin
+  UpdatePnlCancelPosition;
+  WasVisible := pnlCancel.Visible;
+  pnlCancel.Visible := not pnlClient.Enabled;
+  if pnlCancel.Visible <> WasVisible then
+    wbForceTerminate := False;
+  if pnlCancel.Visible then
+    pnlCancel.BringToFront;
+end;
+
 procedure TfrmMain.SetDefaultNodeHeight(aHeight: Integer);
 begin
   vstNav.DefaultNodeHeight := aHeight;
@@ -16543,6 +16644,9 @@ begin
   end;
 
   if not Enabled then
+    Exit;
+
+  if not pnlClient.Enabled then
     Exit;
 
   if not wbEditAllowed then
@@ -17504,14 +17608,6 @@ begin
   Element := NodeDatas[Column].Element;
   if Assigned(Element) and Element.IsEditable then
     CellText := Element.EditValue;
-end;
-
-procedure TfrmMain.vstViewGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode;
-  Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle;
-  var HintText: string);
-begin
-  if GetKeyState(VK_SHIFT) < 0 then
-    HintText := vstView.Text[Node, Column, False];
 end;
 
 procedure TfrmMain.vstViewGetText(Sender: TBaseVirtualTree;
@@ -19356,14 +19452,6 @@ begin
   end;
 end;
 
-procedure TfrmMain.vstSpreadSheetGetHint(Sender: TBaseVirtualTree;
-  Node: PVirtualNode; Column: TColumnIndex;
-  var LineBreakStyle: TVTTooltipLineBreakStyle; var HintText: string);
-begin
-  if GetKeyState(VK_SHIFT) < 0 then
-    HintText := TVirtualEditTree(Sender).Text[Node, Column, False];
-end;
-
 procedure TfrmMain.vstSpreadSheetIncrementalSearch(Sender: TBaseVirtualTree; Node: PVirtualNode; const SearchText: string; var Result: Integer);
 var
   CompareText                 : string;
@@ -19908,14 +19996,28 @@ begin
 end;
 
 procedure TfrmMain.UpdateActions;
+var
+  HintMode: TVTHintMode;
 begin
   if DelayedExpandView then begin
     DelayedExpandView := False;
     ExpandView;
   end;
-  if Enabled then
+  if Enabled and pnlClient.Enabled then
     NavUpdate(False);
   inherited;
+
+  if GetAsyncKeyState(VK_SHIFT) and $8000 <> 0 then
+    HintMode := hmTooltip
+  else
+    HintMode := hmDefault;
+
+  if HintMode <> vstView.HintMode then begin
+    vstView.HintMode := HintMode;
+    vstSpreadSheetWeapon.HintMode := HintMode;
+    vstSpreadsheetArmor.HintMode := HintMode;
+    vstSpreadSheetAmmo.HintMode := HintMode;
+  end;
 end;
 
 procedure TfrmMain.UpdateActiveFromPluggyLink;
@@ -20079,6 +20181,7 @@ procedure TLoaderThread.Execute;
 var
   i,j                         : Integer;
   dummy                       : Integer;
+  bsaCount                    : Integer;
   _File                       : IwbFile;
   s,t                         : string;
   b                           : TBytes;
@@ -20112,7 +20215,15 @@ begin
           try
             m := TStringList.Create;
             try
-              if FindBSAs(wbTheGameIniFileName, ltDataPath, n, m)>0 then begin
+              bsaCount := 0;
+              if FileExists(wbTheGameIniFileName) then begin
+                if FileExists(wbCustomIniFileName) then
+                  bsaCount := FindBSAs(wbTheGameIniFileName, wbCustomIniFileName, ltDataPath, n, m)
+                else
+                  bsaCount := FindBSAs(wbTheGameIniFileName, ltDataPath, n, m);
+              end;
+
+              if (bsaCount > 0) then begin
                 for i := 0 to Pred(n.Count) do
                   if wbLoadBSAs then begin
                     LoaderProgress('[' + n[i] + '] Loading Resources.');
@@ -20141,7 +20252,7 @@ begin
                 // all games except old Skyrim load BSA files with partial matching, Skyrim requires exact names match
                 // and can use a private ini to specify the bsa to use.
                 if HasBSAs(ChangeFileExt(ltLoadList[i], ''), ltDataPath,
-                    wbGameMode in [gmTES5, gmEnderal, gmEnderalSE], wbIsSkyrim, n, m)>0 then begin
+                    wbGameMode in [gmTES5, gmEnderal], wbIsSkyrim, n, m)>0 then begin
                       for j := 0 to Pred(n.Count) do
                         if wbLoadBSAs then begin
                           LoaderProgress('[' + n[j] + '] Loading Resources.');

@@ -440,7 +440,7 @@ type
 
     function BeginUpdate: Integer;
     function EndUpdate: Integer;
-    procedure UpdatedEnded; virtual;
+    procedure UpdateEnded; virtual;
 
     constructor Create(const aContainer: IwbContainer);
     procedure BeforeDestruction; override;
@@ -1427,6 +1427,8 @@ type
 
     procedure CheckTerminator;
 
+    procedure NotifyChangedInternal(aContainer: Pointer); override;
+
     {--- IwbSubRecord ---}
     function GetSubRecordHeaderSize: Integer;
 
@@ -1495,6 +1497,8 @@ type
     procedure DoInit(aNeedSorted: Boolean); override;
     procedure Init; override;
     procedure Reset; override;
+
+    procedure SetToDefaultInternal; override;
 
     procedure ResetMemoryOrder; override;
 
@@ -1719,6 +1723,7 @@ type
     gsSorted,
     gsSorting,
     gsSortPostponed,
+    gsSortForcedPostponed,
     gsInformedMainRecord
   );
 
@@ -1761,7 +1766,7 @@ type
     function Add(const aName: string; aSilent: Boolean): IwbElement; override;
     procedure Sort(aForce: Boolean = False);
 
-    procedure UpdatedEnded; override;
+    procedure UpdateEnded; override;
 
     procedure SetModified(aValue: Boolean); override;
 
@@ -3967,6 +3972,7 @@ begin
     Result := d;
   end else
     Result := 0.0;
+  Result := RoundTo(Result, -2);
 end;
 
 function TwbFile.HasGroup(const aSignature: TwbSignature): Boolean;
@@ -6896,6 +6902,14 @@ var
   i: Integer;
   SelfRef : IwbContainerElementRef;
 begin
+  var Def := GetDef;
+  if Assigned(Def) and (dfDontAssign in Def.DefFlags) then
+    Exit;
+
+  var ValueDef := GetValueDef;
+  if Assigned(ValueDef) and (dfDontAssign in ValueDef.DefFlags) then
+    Exit;
+
   SelfRef := Self as IwbContainerElementRef;
   DoInit(False);
   inherited;
@@ -12888,7 +12902,7 @@ begin
               CopyCount := ArrayDef.ElementCount;
 
             for i := 0 to Pred(CopyCount) do
-              if i < Length(cntElements) then
+              if (i < Length(cntElements)) and not Supports(cntElements[i], IwbStringListTerminator) then
                 cntElements[i].Assign(Low(Integer), Container.Elements[i], aOnlySK)
               else
                 Assign(i, Container.Elements[i], aOnlySK);
@@ -13071,6 +13085,9 @@ var
   ArrayDef  : IwbArrayDef;
   StringDef : IwbStringDef;
 begin
+  if eUpdateCount > 0 then
+    Exit; {will be checked in NotifyChangedInternal}
+
   if not Supports(srValueDef, IwbArrayDef, ArrayDef) then
     Exit;
   if not ArrayDef.IsVariableSize then
@@ -13720,6 +13737,15 @@ begin
     srStruct.srsDataSize := 0;
 end;
 
+procedure TwbSubRecord.NotifyChangedInternal(aContainer: Pointer);
+begin
+  if (srsIsArray in srStates) and (esModified in eStates) then begin
+    CheckCount;
+    CheckTerminator;
+  end;
+  inherited;
+end;
+
 procedure TwbSubRecord.PrepareSave;
 begin
   if wbDelayLoadRecords then
@@ -13926,6 +13952,9 @@ procedure TwbSubRecord.SetToDefaultInternal;
 var
   SelfRef: IwbContainerElementRef;
   BasePtr, EndPtr: Pointer;
+  ArrayDef: IwbArrayDef;
+  DefaultEditValues: TArray<string>;
+  i: Integer;
 begin
   SelfRef := Self as IwbContainerElementRef;
 
@@ -13940,6 +13969,12 @@ begin
   if Assigned(srValueDef) then
     RequestStorageChange(BasePtr, EndPtr, srValueDef.DefaultSize[nil, nil, Self]);
   inherited;
+  if srsIsArray in srStates then
+    if Supports(srValueDef, IwbArrayDef, ArrayDef) then begin
+      DefaultEditValues := ArrayDef.GetDefaultEditValues;
+      for i := 0 to Pred(Min(Length(DefaultEditValues), GetElementCount)) do
+        cntElements[i].EditValue := DefaultEditValues[i];
+    end;
 end;
 
 function TwbSubRecord.srStruct: PwbSubRecordHeaderStruct;
@@ -15853,8 +15888,10 @@ begin
     if grStates * [gsSorted, gsSorting] <> [] then
       Exit;
 
-  if eUpdateCount > 0 then begin
+  if not (esEndingUpdate in eStates) and (eUpdateCount > 0) then begin
     Include(grStates, gsSortPostponed);
+    if aForce then
+      Include(grStates, gsSortForcedPostponed);
     Exit;
   end;
 
@@ -15863,6 +15900,7 @@ begin
     Exit;
 
   Include(grStates, gsSorting);
+  wbLockProcessMessages;
   try
     ChildrenOf := GetChildrenOf;
     // there is no PNAM in Fallout 4, looks like INFOs are no longer linked lists
@@ -15909,6 +15947,7 @@ begin
       wbMergeSortPtr(@cntElements[0], Length(cntElements), CompareGroupContents);
     Include(grStates, gsSorted);
   finally
+    wbUnLockProcessMessages;
     Exclude(grStates, gsSorting);
   end;
 
@@ -15920,11 +15959,13 @@ begin
 {$ENDIF}
 end;
 
-procedure TwbGroupRecord.UpdatedEnded;
+procedure TwbGroupRecord.UpdateEnded;
 begin
   if gsSortPostponed in grStates then begin
     Exclude(grStates, gsSortPostponed);
-    Sort;
+    var Force := gsSortForcedPostponed in grStates;
+    Exclude(grStates, gsSortForcedPostponed);
+    Sort(Force);
   end;
   inherited;
 end;
@@ -16421,8 +16462,14 @@ function TwbElement.EndUpdate: Integer;
 
 begin
   Result := Pred(eUpdateCount);
-  if Result = 0 then
-    UpdatedEnded;
+  if Result = 0 then begin
+    Include(eStates, esEndingUpdate);
+    try
+      UpdateEnded;
+    finally
+      Exclude(eStates, esEndingUpdate);
+    end;
+  end;
   eUpdateCount := Result;
 end;
 
@@ -17155,6 +17202,14 @@ var
   Element       : IwbElement;
   ReferenceFile : IwbFile;
 begin
+  var Def := GetDef;
+  if Assigned(Def) and (dfDontAssign in Def.DefFlags) then
+    Exit;
+
+  var ValueDef := GetValueDef;
+  if Assigned(ValueDef) and (dfDontAssign in ValueDef.DefFlags) then
+    Exit;
+
   Element := GetLinksTo;
   if Assigned(Element) then begin
     ReferenceFile := Element.ReferenceFile;
@@ -17400,7 +17455,7 @@ begin
   {can be overridden}
 end;
 
-procedure TwbElement.UpdatedEnded;
+procedure TwbElement.UpdateEnded;
 var
   IsInternal: Boolean;
 begin
@@ -17735,6 +17790,10 @@ constructor TwbSubRecordArray.Create(const aOwner     : IwbContainer;
                                      const aContainer : IwbContainer;
                                            aPos       : Integer;
                                      const aDef       : IwbSubRecordArrayDef);
+var
+  DEV      : TArray<string>;
+  MinCount : Integer;
+  i        : Integer;
 begin
   arcDef := aDef;
   eContainer := Pointer(aOwner);
@@ -17742,7 +17801,12 @@ begin
     if aPos <> Low(Integer) then begin
       DoProcess(aContainer, aPos)
     end else begin
-      Assign(High(Integer), nil, False);
+      DEV := arcDef.DefaultEditValues;
+      MinCount := Max(Max(1, arcDef.Count), Length(DEV));
+      while Length(cntElements) < MinCount do
+        Assign(High(Integer), nil, False);
+      for i := Low(DEV) to High(DEV) do
+        cntElements[i].EditValue := DEV[i];
       Include(cntStates, csAsCreatedEmpty);
     end;
   finally
@@ -17965,8 +18029,11 @@ begin
 end;
 
 function TwbSubRecordArray.IsElementRemoveable(const aElement: IwbElement): Boolean;
+var
+  MinCount: Integer;
 begin
-  Result := IsElementEditable(aElement) and (Length(cntElements) > 1);
+  MinCount := Max(1, arcDef.Count);
+  Result := IsElementEditable(aElement) and (Length(cntElements) > MinCount);
 
   if Result and (dfRemoveLastOnly in arcDef.DefFlags) then
     Result := cntElements[High(cntElements)].Equals(aElement);
@@ -18265,10 +18332,8 @@ begin
         Assert(Assigned(CurrentDef));
       end;
 
-      if Assigned(FoundMembers[CurrentDefPos]) then begin
-        //Beep;
+      if Assigned(FoundMembers[CurrentDefPos]) then
         Break; // don't allow duplicate members
-      end;
 
       case CurrentDef.DefType of
         dtSubRecord : begin
@@ -18286,6 +18351,9 @@ begin
       Element.SetSortOrder(CurrentDefPos);
       Element.SetMemoryOrder(CurrentDefPos);
       FoundMembers[CurrentDefPos] := Element;
+
+      if dfTerminator in CurrentDef.DefFlags then
+        Break;
 
       if srcDef.AllowUnordered then
         CurrentDefPos := 0
@@ -18579,6 +18647,8 @@ var
   t        : string;
   VarSize  : Boolean;
   ArrSize  : Int64;
+
+  DefaultEditValues: TArray<string>;
 begin
   ArrayDef := aValueDef as IwbArrayDef;
   Result := wbSortSubRecords and ArrayDef.Sorted;
@@ -18597,6 +18667,13 @@ begin
 
   VarSize := ArrayDef.IsVariableSize;
   ArrSize := ArrayDef.ElementCount;
+
+  if not Assigned(aBasePtr) then begin
+    DefaultEditValues := ArrayDef.GetDefaultEditValues;
+    if Length(DefaultEditValues) > 0 then
+      ArrSize := Max(ArrSize, Length(DefaultEditValues));
+  end;
+
   if ArrSize < 0 then begin
     ArrSize := ArrayDef.PrefixCount[aBasePtr];
   end else
@@ -18606,7 +18683,11 @@ begin
       if (ArrSize > 0) and not Assigned(aBasePtr) then
         VarSize := False //the array is static in size, even if the elements aren't...
       else
-        ArrSize := High(Integer);
+        if Assigned(aBasePtr) then
+          ArrSize := High(Integer)
+        else
+          if SizePrefix = 0 then
+            ArrSize := 1;
     end;
 
   if Assigned(aBasePtr) then
@@ -18638,6 +18719,9 @@ begin
       else
         Element := TwbValue.Create(aContainer, aBasePtr, aEndPtr, ValueDef, t);
       end;
+
+      if Length(DefaultEditValues) > i then
+        Element.EditValue := DefaultEditValues[i];
 
       Inc(i);
       if VarSize and not Assigned(aBasePtr) then begin
@@ -18932,7 +19016,7 @@ begin
         Sorting := False;
         for i := 0 to Length(cntElements)-1 do
           if (esSorting in (cntElements[i] as IwbElementInternal).ElementStates) then begin
-            Sorting := TRue;
+            Sorting := True;
             Break;
           end;
           if not Sorting then begin
@@ -19026,6 +19110,24 @@ begin
   inherited;
   if aValue and arrSorted then
     arrSortInvalid := True;
+end;
+
+procedure TwbArray.SetToDefaultInternal;
+var
+  SelfRef           : IwbContainerElementRef;
+  ArrayDef          : IwbArrayDef;
+  DefaultEditValues : TArray<string>;
+  i                 : Integer;
+begin
+  SelfRef := Self as IwbContainerElementRef;
+
+  inherited;
+
+  if Supports(vbValueDef, IwbArrayDef, ArrayDef) then begin
+    DefaultEditValues := ArrayDef.GetDefaultEditValues;
+    for i := 0 to Pred(Min(Length(DefaultEditValues), GetElementCount)) do
+      cntElements[i].EditValue := DefaultEditValues[i];
+  end;
 end;
 
 { TwbStruct }
@@ -20924,7 +21026,7 @@ begin
   dcDataEndPtr := nil;
   dcDataStorage := nil;
   DoInit(True);
-  RequestStorageChange(BasePtr, EndPtr, vbValueDef.DefaultSize[nil, nil, Self]);
+  RequestStorageChange(BasePtr, EndPtr, vbValueDef.DefaultSize[nil, nil, Self] + GetDataPrefixSize);
   inherited;
 end;
 
