@@ -59,6 +59,36 @@
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_4)'=='true') or '$(Cfg_4_Win64)'!=''">
+        <Cfg_4_Win64>true</Cfg_4_Win64>
+        <CfgParent>Cfg_4</CfgParent>
+        <Cfg_4>true</Cfg_4>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='LiteDebugSSE' or '$(Cfg_5)'!=''">
+        <Cfg_5>true</Cfg_5>
+        <CfgParent>Cfg_4</CfgParent>
+        <Cfg_4>true</Cfg_4>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_5)'=='true') or '$(Cfg_5_Win32)'!=''">
+        <Cfg_5_Win32>true</Cfg_5_Win32>
+        <CfgParent>Cfg_5</CfgParent>
+        <Cfg_5>true</Cfg_5>
+        <Cfg_4>true</Cfg_4>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_5)'=='true') or '$(Cfg_5_Win64)'!=''">
+        <Cfg_5_Win64>true</Cfg_5_Win64>
+        <CfgParent>Cfg_5</CfgParent>
+        <Cfg_5>true</Cfg_5>
+        <Cfg_4>true</Cfg_4>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <SanitizedProjectName>xEdit</SanitizedProjectName>
         <AppDPIAwarenessMode>system</AppDPIAwarenessMode>
@@ -85,7 +115,20 @@
         <VerInfo_PreRelease>true</VerInfo_PreRelease>
         <VerInfo_Release>4</VerInfo_Release>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Base_Win32)'!=''"/>
+    <PropertyGroup Condition="'$(Base_Win32)'!=''">
+        <PostBuildEvent>
+            <![CDATA[copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)
+copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)
+$(PostBuildEvent)]]>
+        </PostBuildEvent>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
+        <PostBuildEvent>
+            <![CDATA[copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+$(PostBuildEvent)]]>
+        </PostBuildEvent>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_DebugInformation>0</DCC_DebugInformation>
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
@@ -102,9 +145,11 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <BT_BuildType>Debug</BT_BuildType>
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <BT_BuildType>Debug</BT_BuildType>
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_3)'!=''">
         <Icon_MainIcon>xEdit\xEdit_FO_Icon.ico</Icon_MainIcon>
@@ -112,7 +157,22 @@
     <PropertyGroup Condition="'$(Cfg_4)'!=''">
         <DCC_Define>LiteVersion;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Cfg_4_Win32)'!=''"/>
+    <PropertyGroup Condition="'$(Cfg_4_Win32)'!=''">
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_4_Win64)'!=''">
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
+        <PostBuildEvent>
+            <![CDATA[copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit64$(OUTPUTEXT)
+$(PostBuildEvent)]]>
+        </PostBuildEvent>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_5_Win32)'!=''">
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_5_Win64)'!=''">
+        <Icon_MainIcon>xEdit\xEdit_TES_Icon.ico</Icon_MainIcon>
+    </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
@@ -245,6 +305,10 @@
             <Key>Cfg_4</Key>
             <CfgParent>Cfg_2</CfgParent>
         </BuildConfiguration>
+        <BuildConfiguration Include="LiteDebugSSE">
+            <Key>Cfg_5</Key>
+            <CfgParent>Cfg_4</CfgParent>
+        </BuildConfiguration>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Delphi.Personality.12</Borland.Personality>
@@ -265,4 +329,89 @@
     </ProjectExtensions>
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='DebugFO' And '$(Platform)'=='Win32'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='DebugFO' And '$(Platform)'=='Win64'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='LiteDebug' And '$(Platform)'=='Win32'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='LiteDebug' And '$(Platform)'=='Win64'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit64$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='LiteDebugSSE' And '$(Platform)'=='Win32'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit$(OUTPUTEXT)</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='LiteDebugSSE' And '$(Platform)'=='Win64'">
+        <PreBuildEvent/>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\xEdit64$(OUTPUTEXT)&amp;&amp;copy $(OUTPUTPATH) $(OUTPUTDIR)\PTR\FO76Edit64$(OUTPUTEXT)
+</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
 </Project>

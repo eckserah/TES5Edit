@@ -1640,8 +1640,10 @@ begin
       if wbToolMode in [tmDump] then begin
         if FindCmdLineSwitch('check') and not wbReportMode then
           CheckForErrors(0, _File)
-        else
+        else begin
+          WriteLn('Version: '+IntToHex64(_File.CRC32, 8));
           WriteContainer(_File);
+        end;
 
         if wbReportMode then begin
           if DumpCheckReport then begin

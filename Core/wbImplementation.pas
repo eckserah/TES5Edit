@@ -2855,6 +2855,8 @@ begin
   end else if SameText(ExtractFileName(aFileName), wbGameMasterEsm) then begin
     Include(flStates, fsIsGameMaster);
     Include(flStates, fsIsOfficial);
+  end else if (wbGameMode = gmFO76) and (Pos(ChangeFileExt(wbGameMasterEsm,''),ExtractFileName(aFileName)) > 0) then begin
+    Include(flStates, fsIsGameMaster);
   end;
 
   flLoadOrder := aLoadOrder;
@@ -3472,7 +3474,7 @@ end;
 
 function TwbFile.GetAllowHardcodedRangeUse: Boolean;
 begin
-  Result := (wbGameMode = gmTES3) or ((wbGameMode = gmFO4) and (GetVersion >= 1.0));
+  Result := (wbGameMode = gmTES3) or ((wbGameMode = gmFO4) and (GetVersion >= 1.0)) or (wbGameMode = gmFO76);
 end;
 
 function TwbFile.GetBaseName: string;
@@ -3926,7 +3928,7 @@ begin
     Exit;
   end;
 
-  if not (fsIsGameMaster in flStates) then
+  if not (fsIsGameMaster in flStates) and not (fsIsHardcoded in flStates) then
     Result := GetMasterRecordByFormID(aFormID, aAllowInjected, aNewMasters)
   else
     Result := nil;

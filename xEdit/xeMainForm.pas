@@ -4947,14 +4947,16 @@ begin
     end;
   end;
 
-  AddMessage('Using plugin list: ' + wbPluginsFileName);
-  if not FileExists(wbPluginsFileName) then begin
-    // plugins file could be missing in Fallout 4 and SSE since DLCs are loaded automatically
-{    if (wbToolSource in [tsPlugins]) and not (wbGameMode in [gmFO4, gmFO4VR, gmTES5VR, gmSSE]) then begin
-      AddMessage('Fatal: Could not find plugin list');
-      Exit;
-    end else}
-      AddMessage('Warning: Could not find plugin list');
+  if wbGameMode <> gmFO76 then begin
+    AddMessage('Using plugin list: ' + wbPluginsFileName);
+    if not FileExists(wbPluginsFileName) then begin
+      // plugins file could be missing in Fallout 4 and SSE since DLCs are loaded automatically
+  {    if (wbToolSource in [tsPlugins]) and not (wbGameMode in [gmFO4, gmFO4VR, gmTES5VR, gmSSE]) then begin
+        AddMessage('Fatal: Could not find plugin list');
+        Exit;
+      end else}
+        AddMessage('Warning: Could not find plugin list');
+    end;
   end;
 
   AddMessage('Using settings file: ' + xeSettingsFileName);
@@ -4995,7 +4997,7 @@ begin
   if wbToolMode in [tmEdit, tmView, tmTranslate] then begin
 
     {$IFDEF WIN64}
-    if Settings.ReadBool('Init', 'First64Start', True) then begin
+    if (wbGameMode <> gmFO76) and (Settings.ReadBool('Init', 'First64Start', True)) then begin
       if MessageDlg('You have started the 64bit version.' + CRLF + CRLF +
         'The only reason to use the 64bit version is if you are getting an out of memory ' +
         'error while using the 32bit version.' + CRLF + CRLF +
@@ -20388,7 +20390,7 @@ begin
           if wbForceTerminate then
             Exit;
 
-          if (i = 0) and (ltMaster = '') and (ltLoadOrderOffset = 0) and (ltLoadList.Count > 0) and SameText(ltLoadList[0], wbGameMasterEsm) then begin
+          if (i = 0) and (ltMaster = '') and (ltLoadOrderOffset = 0) and (ltLoadList.Count > 0) and (SameText(ltLoadList[0], wbGameMasterEsm) or (wbGameMode = gmFO76)) then begin
             b := TwbHardcodedContainer.GetHardCodedDat;
             if Length(b) > 0 then begin
               t := wbGameExeName;

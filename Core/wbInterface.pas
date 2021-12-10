@@ -46,9 +46,9 @@ var
   VersionString : TwbVersion = (
     Major   : 4;
     Minor   : 1;
-    Release : 4;
-    Build   : '';
-    Title   : 'EXTREMELY EXPERIMENTAL';
+    Release : 6;
+    Build   : '4.1.3.0.0';
+    Title   : 'EcksEdit';
   );
 
 const
@@ -4166,6 +4166,7 @@ var
   wbGameMasterEsm    : string; // name of the GameMaster.esm, usually wbGameName + csDotEsm, different for Fallout 76
   wbGameName2        : string; // game title name used for AppData and MyGames folders
   wbGameNameReg      : string; // registry name
+  wbGameNameReg2     : string; // registry name
   wbToolName         : string;
   wbSourceName       : String;
   wbLanguage         : string;
@@ -4411,7 +4412,7 @@ procedure wbVCI1ToStrAfterFO4(var aValue:string; aBasePtr: Pointer; aEndPtr: Poi
 procedure wbTimeStampToString(var aValue:string; aBasePtr: Pointer; aEndPtr: Pointer; const aElement: IwbElement; aType: TwbCallbackType);
 
 /// <summary>Collapse and truncate the given text to fit in the given width.</summary>
-function ShortenText(const aText: string; const aWidth: Integer = 64; const aPlaceholder: string = '…'): string;
+function ShortenText(const aText: string; const aWidth: Integer = 64; const aPlaceholder: string = 'Â…'): string;
 
 implementation
 
@@ -13840,6 +13841,7 @@ begin
       Result := bsdGetEncoding(aElement).GetString(b);
       if aTransformType = ttCheck then
         Result := '';
+
       {
       i := Length(Result);
       j := i;
